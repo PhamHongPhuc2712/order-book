@@ -7,14 +7,19 @@ public final class Validation {
     public long badLength, unknownType, duplicateRef, unknownRef, execExceeds, cancelExceeds, noDirectory,
                 crossedInMarket, priorityChecked, priorityViolations, duplicateMatch, brokenUnknown, liveAtC;
     private final List<String> samples = new ArrayList<>();
-    private static final int MAX_SAMPLES = 20;
+    private final java.util.HashMap<String, Integer> perKind = new java.util.HashMap<>();
+    private static final int MAX_SAMPLES_PER_KIND = 20;
     private MatchTracker matches;                       // Phase 3: LongSet-backed; null = disabled
 
     public interface MatchTracker { boolean add(long m); boolean contains(long m); }
     public void enableMatchTracking(MatchTracker t) { matches = t; }
     public void matchSeen(long m) { if (matches != null && !matches.add(m)) duplicateMatch++; }
     public void broken(long m) { if (matches != null && !matches.contains(m)) brokenUnknown++; }
-    void sample(String kind, long msgNo, long id) { if (samples.size() < MAX_SAMPLES) samples.add(kind + "@" + msgNo + ":" + id); }
+    /** Keeps the first MAX_SAMPLES_PER_KIND offenders of each kind as "kind@msgNo:id@ts" so no kind starves another. */
+    void sample(String kind, long msgNo, long id, long ts) {
+        int n = perKind.getOrDefault(kind, 0);
+        if (n < MAX_SAMPLES_PER_KIND) { perKind.put(kind, n + 1); samples.add(kind + "@" + msgNo + ":" + id + "@" + ts); }
+    }
     public List<String> samples() { return samples; }
     public boolean structurallyClean() { return badLength + unknownType + duplicateRef + unknownRef + execExceeds + cancelExceeds == 0; }
     public String toJson() {

@@ -84,7 +84,7 @@ public final class Engine {
         Order o = new Order(ref, loc, side, shares, price, ts);
         Order prev = orders.put(ref, o);
         if (prev != null) {
-            v.duplicateRef++; v.sample("dupRef", msgs, ref);
+            v.duplicateRef++; v.sample("dupRef", msgs, ref, ts);
             if (prev.level != null) { Level pl = prev.level; pl.remove(prev); if (pl.count == 0) books[prev.locate].removeLevel(prev.side, pl.price); }
         }
         bk.level(side, price, true).append(o);
@@ -94,7 +94,7 @@ public final class Engine {
 
     private Order lookup(byte[] b, long ref) {
         Order o = orders.get(ref);
-        if (o == null && enabled[Itch.locate(b)]) { v.unknownRef++; v.sample("unknownRef", msgs, ref); }
+        if (o == null && enabled[Itch.locate(b)]) { v.unknownRef++; v.sample("unknownRef", msgs, ref, Itch.timestamp(b)); }
         return o;
     }
 
@@ -105,11 +105,11 @@ public final class Engine {
         Book bk = books[o.locate];
         int price = withPrice ? Itch.u32(b, 32) : o.price;
         boolean printable = !withPrice || b[31] == 'Y';
-        if (ex > o.shares) { v.execExceeds++; v.sample("execExceeds", msgs, ref); ex = o.shares; }
+        if (ex > o.shares) { v.execExceeds++; v.sample("execExceeds", msgs, ref, ts); ex = o.shares; }
         if (!withPrice && marketHours && tradingState[o.locate] == 'T') {
             v.priorityChecked++;
             Level best = bk.bestLevel(o.side);
-            if (best == null || best.price != o.price || best.head != o) { v.priorityViolations++; v.sample("priority", msgs, ref); }
+            if (best == null || best.price != o.price || best.head != o) { v.priorityViolations++; v.sample("priority", msgs, ref, ts); }
         }
         int bb = bk.bestBid(), ba = bk.bestAsk();
         o.level.reduce(o, ex);
@@ -122,7 +122,7 @@ public final class Engine {
         long ref = Itch.u64(b, 11); int c = Itch.u32(b, 19);
         Order o = lookup(b, ref); if (o == null) return;
         Book bk = books[o.locate];
-        if (c > o.shares) { v.cancelExceeds++; v.sample("cancelExceeds", msgs, ref); c = o.shares; }
+        if (c > o.shares) { v.cancelExceeds++; v.sample("cancelExceeds", msgs, ref, ts); c = o.shares; }
         int bb = bk.bestBid(), ba = bk.bestAsk();
         o.level.reduce(o, c);
         listener.onCancel(ts, o.locate, ref, o.side, c, o.price);
@@ -150,7 +150,7 @@ public final class Engine {
         Order n = new Order(newRef, loc, side, shares, price, ts);
         Order prev = orders.put(newRef, n);
         if (prev != null) {
-            v.duplicateRef++; v.sample("dupRef", msgs, newRef);
+            v.duplicateRef++; v.sample("dupRef", msgs, newRef, ts);
             if (prev.level != null) { Level pl = prev.level; pl.remove(prev); if (pl.count == 0) books[prev.locate].removeLevel(prev.side, pl.price); }
         }
         bk.level(side, price, true).append(n);                                 // D22: back of queue
@@ -165,7 +165,7 @@ public final class Engine {
 
     private void afterChange(Book bk, int loc, long ts, int bbBefore, int baBefore) {
         int bb = bk.bestBid(), ba = bk.bestAsk();
-        if (marketHours && tradingState[loc] == 'T' && bb != 0 && ba != 0 && bb >= ba) { v.crossedInMarket++; v.sample("crossed", msgs, loc); }
+        if (marketHours && tradingState[loc] == 'T' && bb != 0 && ba != 0 && bb >= ba) { v.crossedInMarket++; v.sample("crossed", msgs, loc, ts); }
         listener.onBbo(ts, loc, bb, bk.bestShares(BID), ba, bk.bestShares(ASK));
     }
 
