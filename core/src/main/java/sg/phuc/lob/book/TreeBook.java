@@ -24,4 +24,10 @@ public final class TreeBook implements Book {
     @Override public int bestShares(byte s) { Level lv = bestLevel(s); return lv == null ? 0 : lv.shares; }
     @Override public boolean isCrossed() { return !bids.isEmpty() && !asks.isEmpty() && bids.firstKey() >= asks.firstKey(); }
     @Override public int levels(byte s) { return side(s).size(); }
+    @Override public int orderCount() {
+        int n = 0;
+        for (Level lv : bids.values()) n += lv.count;
+        for (Level lv : asks.values()) n += lv.count;
+        return n;
+    }
 }

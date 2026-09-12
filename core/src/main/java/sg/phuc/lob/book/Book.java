@@ -7,4 +7,6 @@ public interface Book {
     int bestBid(); int bestAsk(); int bestShares(byte side);
     boolean isCrossed();
     int levels(byte side);
+    /** Total live orders on both sides. Not on the hot path; used for end-of-day reporting. */
+    int orderCount();
 }
