@@ -12,6 +12,9 @@ public final class Engine {
     private final Book[] books = new Book[65536];
     private final String[] symbols = new String[65536];
     private final byte[] tradingState = new byte[65536];
+    private final long[] resumeTs = new long[65536];      // ts of the last H state=T received in market hours (halt/pause/IPO resume)
+    /** A crossed book within this long after a resumption is the halt cross draining, not an error. Reported separately with max lag. */
+    public static final long RESUME_WINDOW_NS = 1_000_000_000L;
     private final boolean[] enabled = new boolean[65536];
     private final Set<String> filter;                    // null = all symbols
     private final OrderMap orders;
@@ -49,7 +52,7 @@ public final class Engine {
                 if (filter != null) enabled[loc] = filter.contains(sym);
                 if (books[loc] == null) books[loc] = bookFactory.create(loc);
             }
-            case 'H' -> tradingState[Itch.locate(b)] = b[19];
+            case 'H' -> { int loc = Itch.locate(b); byte st = b[19]; tradingState[loc] = st; if (st == 'T' && marketHours) resumeTs[loc] = ts; }
             case 'A', 'F' -> add(b, ts);
             case 'E' -> exec(b, ts, false);
             case 'C' -> exec(b, ts, true);
@@ -165,7 +168,11 @@ public final class Engine {
 
     private void afterChange(Book bk, int loc, long ts, int bbBefore, int baBefore) {
         int bb = bk.bestBid(), ba = bk.bestAsk();
-        if (marketHours && tradingState[loc] == 'T' && bb != 0 && ba != 0 && bb >= ba) { v.crossedInMarket++; v.sample("crossed", msgs, loc, ts); }
+        if (marketHours && tradingState[loc] == 'T' && bb != 0 && ba != 0 && bb >= ba) {
+            long lag = ts - resumeTs[loc];
+            if (resumeTs[loc] != 0 && lag >= 0 && lag < RESUME_WINDOW_NS) { v.crossedAtResume++; if (lag > v.crossedAtResumeMaxLagNs) v.crossedAtResumeMaxLagNs = lag; }
+            else { v.crossedInMarket++; v.sample("crossed", msgs, loc, ts); }
+        }
         listener.onBbo(ts, loc, bb, bk.bestShares(BID), ba, bk.bestShares(ASK));
     }
 

@@ -5,7 +5,7 @@ import java.util.List;
 
 public final class Validation {
     public long badLength, unknownType, duplicateRef, unknownRef, execExceeds, cancelExceeds, noDirectory,
-                crossedInMarket, priorityChecked, priorityViolations, duplicateMatch, brokenUnknown, liveAtC;
+                crossedInMarket, crossedAtResume, crossedAtResumeMaxLagNs, priorityChecked, priorityViolations, duplicateMatch, brokenUnknown, liveAtC;
     private final List<String> samples = new ArrayList<>();
     private final java.util.HashMap<String, Integer> perKind = new java.util.HashMap<>();
     private static final int MAX_SAMPLES_PER_KIND = 20;
@@ -28,6 +28,7 @@ public final class Validation {
          .append(",\"duplicateRef\":").append(duplicateRef).append(",\"unknownRef\":").append(unknownRef)
          .append(",\"execExceeds\":").append(execExceeds).append(",\"cancelExceeds\":").append(cancelExceeds)
          .append(",\"noDirectory\":").append(noDirectory).append(",\"crossedInMarket\":").append(crossedInMarket)
+         .append(",\"crossedAtResume\":").append(crossedAtResume).append(",\"crossedAtResumeMaxLagNs\":").append(crossedAtResumeMaxLagNs)
          .append(",\"priorityChecked\":").append(priorityChecked).append(",\"priorityViolations\":").append(priorityViolations)
          .append(",\"duplicateMatch\":").append(duplicateMatch).append(",\"brokenUnknown\":").append(brokenUnknown)
          .append(",\"liveAtC\":").append(liveAtC).append(",\"samples\":[");

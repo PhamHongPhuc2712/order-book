@@ -58,6 +58,11 @@ class EngineTest {
         assertEquals(1, e.validation().crossedInMarket);
         feed(e, Msg.action(7, 14, "AAPL", 'H'), Msg.add(7, 15, 4, 'B', 1, "AAPL", 650100));
         assertEquals(1, e.validation().crossedInMarket);                  // halted: not counted
+        feed(e, Msg.action(7, 16, "AAPL", 'T'), Msg.add(7, 20, 5, 'B', 1, "AAPL", 650100));
+        assertEquals(1, e.validation().crossedInMarket);                  // resumed 4 ns ago: the halt cross is draining
+        assertEquals(1, e.validation().crossedAtResume); assertEquals(4, e.validation().crossedAtResumeMaxLagNs);
+        feed(e, Msg.add(7, 16 + Engine.RESUME_WINDOW_NS, 6, 'B', 1, "AAPL", 650100));
+        assertEquals(2, e.validation().crossedInMarket);                  // outside the window: unexplained again
     }
     @Test void unknownRefAndExceedsAreCountedAndClamped() {
         Engine e = open("AAPL", 7);
