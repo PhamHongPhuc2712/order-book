@@ -36,8 +36,10 @@ def main(path):
         kind = "subset" if "sub" in d["file"] else "full"
         runs[(d["gc"], d["row"], kind)].append(d)
 
-    for gc in ["G1", "Z"]:
-        print(f"\n### {'G1GC' if gc == 'G1' else 'ZGC'} (`-Xms8g -Xmx8g -XX:+Use{gc}GC` full day; subset with `--hist` at 4g)\n")
+    tables = sorted({k[0] for k in runs}, key=lambda g: ("Z" in g, g))
+    for gc in tables:
+        name, heap = (gc.split("@") + ["8g"])[:2]      # records written before the @heap tag existed ran at 8g
+        print(f"\n### {'G1GC' if name == 'G1' else 'ZGC'} (`-Xms{heap} -Xmx{heap} -XX:+Use{name}GC` full day; subset with `--hist` at 4g)\n")
         print("| step | full-day wall (median) | msgs/s | runs | B/msg | subset p50 ns | p90 | p99 | p99.9 | max ns |")
         print("|---|---|---|---|---|---|---|---|---|---|")
         base = None
