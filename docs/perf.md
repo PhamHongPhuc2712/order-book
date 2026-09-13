@@ -40,7 +40,7 @@ rows (both readers) genuinely pay for SSD reads. The subset (472 MB) is fully ca
 |---|---|---|---|
 | naive | — | `BufferedInputStream` + `HashMap<Long,Order>` + `TreeMap<Integer,Level>` + `new Order` per add | what a competent engineer writes first |
 | +mmap | stream reader | `MappedFrameReader`: 1 GB `MappedByteBuffer` windows, one `get(int, byte[], …)` per frame | removes the `InputStream` copy path; isolates I/O cost |
-| +long | `HashMap<Long,Order>` | `LongObjectMap`: open addressing, `long[]` keys, backward-shift delete | no boxed `Long` and no `HashMap.Node` per put; the biggest allocation source |
+| +long | `HashMap<Long,Order>` | `LongObjectMap`: open addressing, `long[]` keys, backward-shift delete | no boxed `Long` and no `HashMap.Node` per put — ~35 % of naive allocation samples (JFR showed `TreeMap.firstEntry()` copies were the larger source) |
 | +array | `TreeMap` per side | `ArrayBook`: sorted `int[]` prices + parallel `Level[]`, binary search + `arraycopy` | no tree nodes; best is index 0; cache-friendly for the typical level count |
 | +pool | `new Order` per add | `OrderPool` free list threaded through `Order.next` | steady-state hot path stops allocating |
 | +dedupe | `onBbo` on every book change | `onBbo` only when one of the four BBO fields changed | removes listener calls that carry no information |
