@@ -9,11 +9,12 @@ CP="replay/target/classes;core/target/classes;$(cat cp.txt)"
 SUB="data/itch/$DAY.sub20.bin"; OUT="data/perf/$DAY.jfr.txt"; : > "$OUT"
 log() { echo "$@" | tee -a "$OUT"; }
 
+gcflags() { case $1 in G1) echo "-XX:+UseG1GC";; Z) echo "-XX:+UseZGC -XX:+ZGenerational";; esac; }
 for GC in G1 Z; do
   for cfg in "naive|" "final|--final"; do
     label=${cfg%%|*}; flags=${cfg#*|}; jfr="data/perf/$DAY.$label.$GC.jfr"
     log "=== JFR $label $GC ==="
-    java -Xms4g -Xmx4g -XX:+Use${GC}GC -XX:StartFlightRecording=filename=$jfr,settings=profile -cp "$CP" \
+    java -Xms4g -Xmx4g $(gcflags $GC) -XX:StartFlightRecording=filename=$jfr,settings=profile -cp "$CP" \
       sg.phuc.lob.replay.Replay --file "$SUB" $flags --hist 2>&1 | grep -E "^config=|^apply" | tee -a "$OUT"
     # GC: count and pauses
     jfr print --events jdk.GarbageCollection "$jfr" | grep -E "sumOfPauses|longestPause" | tr -d ' ' \

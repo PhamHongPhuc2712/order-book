@@ -10,9 +10,12 @@ CP="replay/target/classes;core/target/classes;$(cat cp.txt)"
 OUT="data/perf/$DAY.txt"
 ROWS=("naive|" "+mmap|--reader mmap" "+long|--reader mmap --map long" "+array|--reader mmap --map long --book array"
       "+pool|--reader mmap --map long --book array --pool" "+dedupe|--reader mmap --map long --book array --pool --dedupe")
+gcflags() { case $1 in G1) echo "-XX:+UseG1GC";; Z) echo "-XX:+UseZGC -XX:+ZGenerational";; *) echo "-XX:+Use$1GC";; esac; }
+# Z = Generational ZGC: JDK 21's default (non-generational) ZGC multi-maps the heap at three addresses, which Windows counts
+# three times in the working set and which starves the page cache on a 13.7 GB machine with an 8 GB file.
 run() { # gc label flags file hist heap
   local gc=$1 label=$2 flags=$3 file=$4 hist=$5 heap=$6
-  local line; line=$(java -Xms${heap} -Xmx${heap} -XX:+Use${gc}GC -cp "$CP" sg.phuc.lob.replay.Replay --file "$file" $flags $hist | head -2 | tr -d '\r' | tr '\n' ' ')
+  local line; line=$(java -Xms${heap} -Xmx${heap} $(gcflags $gc) -cp "$CP" sg.phuc.lob.replay.Replay --file "$file" $flags $hist | head -2 | tr -d '\r' | tr '\n' ' ')
   echo "gc=$gc@$HEAP row=$label file=$(basename $file) $line" | tee -a "$OUT"
 }
 for GC in $GCS; do

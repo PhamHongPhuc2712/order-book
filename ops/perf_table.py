@@ -39,7 +39,13 @@ def main(path):
     tables = sorted({k[0] for k in runs}, key=lambda g: ("Z" in g, g))
     for gc in tables:
         name, heap = (gc.split("@") + ["8g"])[:2]      # records written before the @heap tag existed ran at 8g
-        print(f"\n### {'G1GC' if name == 'G1' else 'ZGC'} (`-Xms{heap} -Xmx{heap} -XX:+Use{name}GC` full day; subset with `--hist` at 4g)\n")
+        if name == "G1":
+            title, flags = "G1GC", "-XX:+UseG1GC"
+        elif "@" in gc:                                 # tagged Z rows were produced after the switch to Generational ZGC
+            title, flags = "Generational ZGC", "-XX:+UseZGC -XX:+ZGenerational"
+        else:                                           # untagged Z rows: JDK 21 default (non-generational) ZGC — the pass that thrashed
+            title, flags = "ZGC (non-generational, abandoned — see text)", "-XX:+UseZGC"
+        print(f"\n### {title} (`-Xms{heap} -Xmx{heap} {flags}` full day; subset with `--hist` at 4g)\n")
         print("| step | full-day wall (median) | msgs/s | runs | B/msg | subset p50 ns | p90 | p99 | p99.9 | max ns |")
         print("|---|---|---|---|---|---|---|---|---|---|")
         base = None

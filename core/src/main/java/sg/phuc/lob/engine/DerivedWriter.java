@@ -17,6 +17,7 @@ public final class DerivedWriter implements Listener, AutoCloseable {
     private final Path dir;
     private Engine engine;
     private final StringBuilder sb = new StringBuilder(256);
+    private char[] cbuf = new char[512];                  // Writer.append(CharSequence) copies to a String; write(char[]) does not
     private final int[] lastBid = new int[N], lastBidSh = new int[N], lastAsk = new int[N], lastAskSh = new int[N];
     private final long[] msgs = new long[N], adds = new long[N], execs = new long[N], cancels = new long[N], deletes = new long[N],
                          replaces = new long[N], volEC = new long[N], volC = new long[N], volP = new long[N], volQ = new long[N];
@@ -32,7 +33,12 @@ public final class DerivedWriter implements Listener, AutoCloseable {
     }
     public void setEngine(Engine e) { this.engine = e; }
     private String sym(int loc) { String s = engine == null ? null : engine.symbol(loc); return s == null ? "?" : s; }
-    private void write(BufferedWriter w) { try { w.append(sb); } catch (IOException e) { throw new UncheckedIOException(e); } }
+    private void write(BufferedWriter w) {
+        int n = sb.length();
+        if (n > cbuf.length) cbuf = new char[Math.max(n, cbuf.length * 2)];
+        sb.getChars(0, n, cbuf, 0);
+        try { w.write(cbuf, 0, n); } catch (IOException e) { throw new UncheckedIOException(e); }
+    }
 
     @Override public void onAdd(long ts, int locate, long ref, byte side, int shares, int price) { seen[locate] = true; adds[locate]++; }
 
@@ -77,7 +83,7 @@ public final class DerivedWriter implements Listener, AutoCloseable {
                 sb.append("{\"sym\":\"").append(sym(loc)).append("\",\"adds\":").append(adds[loc]).append(",\"execs\":").append(execs[loc])
                   .append(",\"cancels\":").append(cancels[loc]).append(",\"volEC\":").append(volEC[loc]).append(",\"volP\":").append(volP[loc])
                   .append(",\"volQ\":").append(volQ[loc]).append(",\"liveAtC\":").append(live).append("}\n");
-                daily.append(sb);
+                int n = sb.length(); if (n > cbuf.length) cbuf = new char[n]; sb.getChars(0, n, cbuf, 0); daily.write(cbuf, 0, n);
             }
         }
     }
