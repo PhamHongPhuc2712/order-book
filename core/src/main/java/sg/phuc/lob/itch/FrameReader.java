@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.io.InputStream;
 
 /** Reads [len:2 big-endian][message] frames into a reusable buffer. Throws with byte offset on any truncation. */
-public final class FrameReader implements AutoCloseable {
+public final class FrameReader implements Frames {
     private final InputStream in;
     private final byte[] buf = new byte[65536];
     private final byte[] hdr = new byte[2];

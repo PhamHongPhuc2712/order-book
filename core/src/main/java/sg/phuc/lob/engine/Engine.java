@@ -20,13 +20,22 @@ public final class Engine {
     private final OrderMap orders;
     private final BookFactory bookFactory;
     private final Listener listener;
+    private final OrderPool pool;                        // null = allocate an Order per add (the naive baseline)
+    private final boolean dedupe;                        // true = call onBbo only when one of the four BBO fields changed
+    private final int[] lastBid, lastBidSh, lastAsk, lastAskSh;
     private final Validation v = new Validation();
     private boolean marketHours = false;
     private char session = 0;
     private long msgs;
 
     public Engine(OrderMap orders, BookFactory bookFactory, Listener listener, Set<String> symbolFilter) {
+        this(orders, bookFactory, listener, symbolFilter, null, false);
+    }
+    public Engine(OrderMap orders, BookFactory bookFactory, Listener listener, Set<String> symbolFilter, OrderPool pool, boolean dedupe) {
         this.orders = orders; this.bookFactory = bookFactory; this.listener = listener; this.filter = symbolFilter;
+        this.pool = pool; this.dedupe = dedupe;
+        if (dedupe) { lastBid = new int[65536]; lastBidSh = new int[65536]; lastAsk = new int[65536]; lastAskSh = new int[65536]; }
+        else lastBid = lastBidSh = lastAsk = lastAskSh = null;
         if (filter == null) java.util.Arrays.fill(enabled, true);
         enabled[0] = true;
     }
@@ -75,6 +84,10 @@ public final class Engine {
         return bk;
     }
 
+    private Order newOrder(long ref, int loc, byte side, int shares, int price, long ts) {
+        return pool == null ? new Order(ref, loc, side, shares, price, ts) : pool.take(ref, loc, side, shares, price, ts);
+    }
+
     private void add(byte[] b, long ts) {
         int loc = Itch.locate(b);
         if (!enabled[loc]) return;
@@ -83,16 +96,18 @@ public final class Engine {
 
     private void insert(int loc, long ref, byte side, int shares, int price, long ts) {
         Book bk = bookOrCreate(loc);
-        int bb = bk.bestBid(), ba = bk.bestAsk();
-        Order o = new Order(ref, loc, side, shares, price, ts);
+        Order o = newOrder(ref, loc, side, shares, price, ts);
         Order prev = orders.put(ref, o);
-        if (prev != null) {
-            v.duplicateRef++; v.sample("dupRef", msgs, ref, ts);
-            if (prev.level != null) { Level pl = prev.level; pl.remove(prev); if (pl.count == 0) books[prev.locate].removeLevel(prev.side, pl.price); }
-        }
+        if (prev != null) { v.duplicateRef++; v.sample("dupRef", msgs, ref, ts); unlinkStale(prev); }
         bk.level(side, price, true).append(o);
         listener.onAdd(ts, loc, ref, side, shares, price);
-        afterChange(bk, loc, ts, bb, ba);
+        afterChange(bk, loc, ts);
+    }
+
+    /** A stale order displaced by a duplicate reference: take it off its level and recycle it. */
+    private void unlinkStale(Order prev) {
+        if (prev.level != null) { Level pl = prev.level; pl.remove(prev); if (pl.count == 0) books[prev.locate].removeLevel(prev.side, pl.price); }
+        if (pool != null) pool.give(prev);
     }
 
     private Order lookup(byte[] b, long ref) {
@@ -114,11 +129,11 @@ public final class Engine {
             Level best = bk.bestLevel(o.side);
             if (best == null || best.price != o.price || best.head != o) { v.priorityViolations++; v.sample("priority", msgs, ref, ts); }
         }
-        int bb = bk.bestBid(), ba = bk.bestAsk();
+        int loc = o.locate;
         o.level.reduce(o, ex);
-        listener.onExecution(ts, o.locate, ref, o.side, ex, price, match, printable);
+        listener.onExecution(ts, loc, ref, o.side, ex, price, match, printable);
         if (o.shares == 0) removeOrder(o, bk);
-        afterChange(bk, o.locate, ts, bb, ba);
+        afterChange(bk, loc, ts);
     }
 
     private void cancel(byte[] b, long ts) {
@@ -126,20 +141,20 @@ public final class Engine {
         Order o = lookup(b, ref); if (o == null) return;
         Book bk = books[o.locate];
         if (c > o.shares) { v.cancelExceeds++; v.sample("cancelExceeds", msgs, ref, ts); c = o.shares; }
-        int bb = bk.bestBid(), ba = bk.bestAsk();
+        int loc = o.locate;
         o.level.reduce(o, c);
-        listener.onCancel(ts, o.locate, ref, o.side, c, o.price);
+        listener.onCancel(ts, loc, ref, o.side, c, o.price);
         if (o.shares == 0) removeOrder(o, bk);
-        afterChange(bk, o.locate, ts, bb, ba);
+        afterChange(bk, loc, ts);
     }
 
     private void delete(byte[] b, long ts) {
         Order o = lookup(b, Itch.u64(b, 11)); if (o == null) return;
         Book bk = books[o.locate];
-        int bb = bk.bestBid(), ba = bk.bestAsk();
-        listener.onCancel(ts, o.locate, o.ref, o.side, o.shares, o.price);
+        int loc = o.locate;
+        listener.onCancel(ts, loc, o.ref, o.side, o.shares, o.price);
         removeOrder(o, bk);
-        afterChange(bk, o.locate, ts, bb, ba);
+        afterChange(bk, loc, ts);
     }
 
     private void replace(byte[] b, long ts) {
@@ -147,39 +162,43 @@ public final class Engine {
         Order o = lookup(b, oldRef); if (o == null) return;
         Book bk = books[o.locate];
         int loc = o.locate; byte side = o.side;
-        int bb = bk.bestBid(), ba = bk.bestAsk();
         listener.onCancel(ts, loc, oldRef, side, o.shares, o.price);          // old order leaves the queue
         removeOrder(o, bk);
-        Order n = new Order(newRef, loc, side, shares, price, ts);
+        Order n = newOrder(newRef, loc, side, shares, price, ts);
         Order prev = orders.put(newRef, n);
-        if (prev != null) {
-            v.duplicateRef++; v.sample("dupRef", msgs, newRef, ts);
-            if (prev.level != null) { Level pl = prev.level; pl.remove(prev); if (pl.count == 0) books[prev.locate].removeLevel(prev.side, pl.price); }
-        }
+        if (prev != null) { v.duplicateRef++; v.sample("dupRef", msgs, newRef, ts); unlinkStale(prev); }
         bk.level(side, price, true).append(n);                                 // D22: back of queue
         listener.onAdd(ts, loc, newRef, side, shares, price);
-        afterChange(bk, loc, ts, bb, ba);
+        afterChange(bk, loc, ts);
     }
 
+    /** Unlink from level and map; recycle last, after every listener has seen the order. */
     private void removeOrder(Order o, Book bk) {
         Level lv = o.level; lv.remove(o); orders.remove(o.ref);
         if (lv.count == 0) bk.removeLevel(o.side, lv.price);
+        if (pool != null) pool.give(o);
     }
 
-    private void afterChange(Book bk, int loc, long ts, int bbBefore, int baBefore) {
+    private void afterChange(Book bk, int loc, long ts) {
         int bb = bk.bestBid(), ba = bk.bestAsk();
         if (marketHours && tradingState[loc] == 'T' && bb != 0 && ba != 0 && bb >= ba) {
             long lag = ts - resumeTs[loc];
             if (resumeTs[loc] != 0 && lag >= 0 && lag < RESUME_WINDOW_NS) { v.crossedAtResume++; if (lag > v.crossedAtResumeMaxLagNs) v.crossedAtResumeMaxLagNs = lag; }
             else { v.crossedInMarket++; v.sample("crossed", msgs, loc, ts); }
         }
-        listener.onBbo(ts, loc, bb, bk.bestShares(BID), ba, bk.bestShares(ASK));
+        int bs = bk.bestShares(BID), as = bk.bestShares(ASK);
+        if (dedupe) {
+            if (bb == lastBid[loc] && bs == lastBidSh[loc] && ba == lastAsk[loc] && as == lastAskSh[loc]) return;
+            lastBid[loc] = bb; lastBidSh[loc] = bs; lastAsk[loc] = ba; lastAskSh[loc] = as;
+        }
+        listener.onBbo(ts, loc, bb, bs, ba, as);
     }
 
     public Validation validation() { return v; }
     public String symbol(int loc) { return symbols[loc]; }
     public Book book(int loc) { return bookOrCreate(loc); }
     public OrderMap orders() { return orders; }
+    public OrderPool pool() { return pool; }
     public int liveOrders() { return orders.size(); }
     public long messages() { return msgs; }
     public boolean marketHours() { return marketHours; }

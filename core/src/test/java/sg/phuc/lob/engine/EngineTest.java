@@ -6,9 +6,10 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.*;
 
 class EngineTest {
-    static Engine engine(Set<String> filter) { return new Engine(new HashOrderMap(1024), TreeBook::new, new NullListener(), filter); }
+    /** Overridden by PooledEngineTest to run every case against the optimised configuration. */
+    Engine engine(Set<String> filter) { return new Engine(new HashOrderMap(1024), TreeBook::new, new NullListener(), filter); }
     static void feed(Engine e, byte[]... msgs) { for (byte[] m : msgs) e.apply(m, m.length); }
-    static Engine open(String stock, int loc) {           // directory, trading, market hours
+    Engine open(String stock, int loc) {                  // directory, trading, market hours
         Engine e = engine(null);
         feed(e, Msg.sys(1, 'O'), Msg.dir(loc, 2, stock), Msg.action(loc, 3, stock, 'T'), Msg.sys(4, 'S'), Msg.sys(5, 'Q'));
         return e;
