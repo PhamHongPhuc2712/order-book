@@ -17,5 +17,6 @@ final class Msg {
     static byte[] execPx(int loc, long ts, long ref, int sh, long match, char printable, int px) { byte[] b = hdr('C', 36, loc, ts); p64(b, 11, ref); p32(b, 19, sh); p64(b, 23, match); b[31] = (byte) printable; p32(b, 32, px); return b; }
     static byte[] cancel(int loc, long ts, long ref, int sh) { byte[] b = hdr('X', 23, loc, ts); p64(b, 11, ref); p32(b, 19, sh); return b; }
     static byte[] delete(int loc, long ts, long ref) { byte[] b = hdr('D', 19, loc, ts); p64(b, 11, ref); return b; }
+    static byte[] broken(int loc, long ts, long match) { byte[] b = hdr('B', 19, loc, ts); p64(b, 11, match); return b; }
     static byte[] replace(int loc, long ts, long oldRef, long newRef, int sh, int px) { byte[] b = hdr('U', 35, loc, ts); p64(b, 11, oldRef); p64(b, 19, newRef); p32(b, 27, sh); p32(b, 31, px); return b; }
 }

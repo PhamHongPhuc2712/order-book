@@ -9,6 +9,16 @@ public final class Engine {
     public interface BookFactory { Book create(int locate); }
     public static final byte BID = 'B', ASK = 'S';
 
+    /** Receives every price-time-priority violation with its full context (Phase 3 validation mode). */
+    public interface PriorityHook {
+        void onViolation(long ts, int locate, long ref, byte side, int execShares, int orderShares, int orderPrice, int bestPrice,
+                         boolean isHead, long headRef, int queuePosition, int levelCount, int levelShares, byte tradingState,
+                         long nsSinceLastExec, long nsSinceLastChange);
+    }
+    private PriorityHook priorityHook;                   // null = off; when set, per-locate last-exec/last-change timestamps are kept
+    private long[] lastExecTs, lastChangeTs;
+    public void setPriorityHook(PriorityHook h) { priorityHook = h; if (h != null && lastExecTs == null) { lastExecTs = new long[65536]; lastChangeTs = new long[65536]; } }
+
     private final Book[] books = new Book[65536];
     private final String[] symbols = new String[65536];
     private final byte[] tradingState = new byte[65536];
@@ -68,9 +78,9 @@ public final class Engine {
             case 'X' -> cancel(b, ts);
             case 'D' -> delete(b, ts);
             case 'U' -> replace(b, ts);
-            case 'P' -> { int loc = Itch.locate(b); long m = Itch.u64(b, 36); v.matchSeen(m);
+            case 'P' -> { int loc = Itch.locate(b); long m = Itch.u64(b, 36); v.matchSeen(m, true);
                           if (enabled[loc]) listener.onTrade(ts, loc, 'P', Itch.u32(b, 20), Itch.u32(b, 32), m, (char) 0); }
-            case 'Q' -> { int loc = Itch.locate(b); long m = Itch.u64(b, 31); v.matchSeen(m);
+            case 'Q' -> { int loc = Itch.locate(b); long m = Itch.u64(b, 31); v.matchSeen(m, true);
                           long sh = Itch.u64(b, 11);
                           if (enabled[loc]) listener.onTrade(ts, loc, 'Q', (int) Math.min(Integer.MAX_VALUE, sh), Itch.u32(b, 27), m, (char) b[39]); }
             case 'B' -> v.broken(Itch.u64(b, 11));
@@ -118,16 +128,20 @@ public final class Engine {
 
     private void exec(byte[] b, long ts, boolean withPrice) {
         long ref = Itch.u64(b, 11); int ex = Itch.u32(b, 19); long match = Itch.u64(b, 23);
-        v.matchSeen(match);
+        boolean printable = !withPrice || b[31] == 'Y';
+        v.matchSeen(match, printable);
         Order o = lookup(b, ref); if (o == null) return;
         Book bk = books[o.locate];
         int price = withPrice ? Itch.u32(b, 32) : o.price;
-        boolean printable = !withPrice || b[31] == 'Y';
         if (ex > o.shares) { v.execExceeds++; v.sample("execExceeds", msgs, ref, ts); ex = o.shares; }
         if (!withPrice && marketHours && tradingState[o.locate] == 'T') {
             v.priorityChecked++;
             Level best = bk.bestLevel(o.side);
-            if (best == null || best.price != o.price || best.head != o) { v.priorityViolations++; v.sample("priority", msgs, ref, ts); }
+            if (best == null || best.price != o.price || best.head != o) {
+                v.priorityViolations++; v.sample("priority", msgs, ref, ts);
+                if (priorityHook != null) reportViolation(ts, o, ex, best);
+            }
+            if (priorityHook != null) lastExecTs[o.locate] = ts;
         }
         int loc = o.locate;
         o.level.reduce(o, ex);
@@ -172,6 +186,15 @@ public final class Engine {
         afterChange(bk, loc, ts);
     }
 
+    private void reportViolation(long ts, Order o, int ex, Level best) {
+        int loc = o.locate;
+        int pos = 0; for (Order q = o.level.head; q != null && q != o && pos < 100_000; q = q.next) pos++;
+        long le = lastExecTs[loc], lc = lastChangeTs[loc];
+        priorityHook.onViolation(ts, loc, o.ref, o.side, ex, o.shares, o.price, best == null ? 0 : best.price,
+            best != null && best.head == o, best == null || best.head == null ? 0 : best.head.ref, pos, o.level.count, o.level.shares,
+            tradingState[loc], le == 0 ? -1 : ts - le, lc == 0 ? -1 : ts - lc);
+    }
+
     /** Unlink from level and map; recycle last, after every listener has seen the order. */
     private void removeOrder(Order o, Book bk) {
         Level lv = o.level; lv.remove(o); orders.remove(o.ref);
@@ -187,6 +210,7 @@ public final class Engine {
             else { v.crossedInMarket++; v.sample("crossed", msgs, loc, ts); }
         }
         int bs = bk.bestShares(BID), as = bk.bestShares(ASK);
+        if (priorityHook != null) lastChangeTs[loc] = ts;
         if (dedupe) {
             if (bb == lastBid[loc] && bs == lastBidSh[loc] && ba == lastAsk[loc] && as == lastAskSh[loc]) return;
             lastBid[loc] = bb; lastBidSh[loc] = bs; lastAsk[loc] = ba; lastAskSh[loc] = as;

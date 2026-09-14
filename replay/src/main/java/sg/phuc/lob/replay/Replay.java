@@ -56,10 +56,29 @@ public final class Replay {
         }
     }
 
+    /** Validation-mode options: match-number tracking (D25) and the priority-violation dump. */
+    public record Validate(boolean matches, Path priorityDump, int dumpMax) {
+        public static final Validate OFF = new Validate(false, null, 0);
+    }
+
     public static Result run(Path file, Config cfg, Set<String> symbols, Listener listener, boolean hist) throws IOException {
+        return run(file, cfg, symbols, listener, hist, Validate.OFF);
+    }
+
+    public static Result run(Path file, Config cfg, Set<String> symbols, Listener listener, boolean hist, Validate val) throws IOException {
         OrderPool pool = cfg.pool() ? new OrderPool(1 << 16) : null;
         Engine eng = new Engine(cfg.orderMap(1 << 20), cfg.bookFactory(), listener, symbols, pool, cfg.dedupe());
         if (listener instanceof DerivedWriter dw) dw.setEngine(eng);
+        if (val.matches()) {                                  // ~7 M printable matches per day: 2^25 slots, 256 MB; non-printable legs are rare
+            LongSet printable = new LongSet(1 << 24), nonPrintable = new LongSet(1 << 16);
+            eng.validation().enableMatchTracking(new Validation.MatchTracker() {
+                @Override public boolean add(long m, boolean p) { return p ? printable.add(m) : nonPrintable.add(m); }
+                @Override public boolean paired(long m) { return printable.contains(m) && nonPrintable.contains(m); }
+                @Override public boolean contains(long m) { return printable.contains(m) || nonPrintable.contains(m); }
+            });
+        }
+        PriorityDump dump = val.priorityDump() == null ? null : new PriorityDump(val.priorityDump(), eng, val.dumpMax());
+        if (dump != null) eng.setPriorityHook(dump);
         Histogram h = hist ? new Histogram(10_000_000_000L, 3) : null;
         var tmx = (com.sun.management.ThreadMXBean) ManagementFactory.getThreadMXBean();
         long tid = Thread.currentThread().threadId();
@@ -75,6 +94,7 @@ public final class Replay {
         }
         double wall = (System.nanoTime() - t0) / 1e9;
         long alloc = tmx.getThreadAllocatedBytes(tid) - alloc0;
+        if (dump != null) dump.close();
         long n = eng.messages();
         return new Result(cfg.label(), n, wall,
             h == null ? 0 : h.getValueAtPercentile(50), h == null ? 0 : h.getValueAtPercentile(90), h == null ? 0 : h.getValueAtPercentile(99),
@@ -84,7 +104,7 @@ public final class Replay {
 
     public static void main(String[] args) throws IOException {
         Path file = null; Set<String> syms = null; boolean hist = false; Path out = null;
-        String reader = "stream", map = "hash", book = "tree"; boolean pool = false, dedupe = false;
+        String reader = "stream", map = "hash", book = "tree"; boolean pool = false, dedupe = false, validate = false; int dumpN = 0;
         for (int i = 0; i < args.length; i++) switch (args[i]) {
             case "--file" -> file = Path.of(args[++i]);
             case "--symbols" -> syms = Set.of(args[++i].split(","));
@@ -96,12 +116,16 @@ public final class Replay {
             case "--pool" -> pool = true;
             case "--dedupe" -> dedupe = true;
             case "--final" -> { reader = "mmap"; map = "long"; book = "array"; pool = true; dedupe = true; }
+            case "--validate" -> validate = true;
+            case "--dump-priority" -> dumpN = Integer.parseInt(args[++i]);
             default -> throw new IllegalArgumentException(args[i]);
         }
         if (file == null) throw new IllegalArgumentException("--file is required");
         Config cfg = new Config(reader, map, book, pool, dedupe);
+        if (dumpN > 0 && out == null) throw new IllegalArgumentException("--dump-priority needs --out DIR (writes DIR/priority.ndjson)");
+        Validate val = new Validate(validate, dumpN > 0 ? out.resolve("priority.ndjson") : null, dumpN);
         Listener l = out == null ? new NullListener() : new DerivedWriter(out);
-        Result r = run(file, cfg, syms, l, hist);
+        Result r = run(file, cfg, syms, l, hist, val);
         if (l instanceof DerivedWriter dw) dw.close();
         if (out != null) Files.writeString(out.resolve("validation.json"), r.validation());
         System.out.println(r);

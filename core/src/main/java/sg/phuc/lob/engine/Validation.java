@@ -5,15 +5,30 @@ import java.util.List;
 
 public final class Validation {
     public long badLength, unknownType, duplicateRef, unknownRef, execExceeds, cancelExceeds, noDirectory,
-                crossedInMarket, crossedAtResume, crossedAtResumeMaxLagNs, priorityChecked, priorityViolations, duplicateMatch, brokenUnknown, liveAtC;
+                crossedInMarket, crossedAtResume, crossedAtResumeMaxLagNs, priorityChecked, priorityViolations, duplicateMatch, twoSidedMatches, brokenUnknown, liveAtC;
     private final List<String> samples = new ArrayList<>();
     private final java.util.HashMap<String, Integer> perKind = new java.util.HashMap<>();
     private static final int MAX_SAMPLES_PER_KIND = 20;
     private MatchTracker matches;                       // Phase 3: LongSet-backed; null = disabled
 
-    public interface MatchTracker { boolean add(long m); boolean contains(long m); }
+    /**
+     * Match numbers are day-unique per trade, but a trade between two resting displayed orders is reported once per leg with
+     * the same match number: one leg printable, the other Printable=N. So a match may carry one printable leg (E, printable C,
+     * P, Q) and one non-printable leg; a repeat within either class is a duplicate.
+     */
+    public interface MatchTracker {
+        /** @return false if this (m, printable) leg was already seen. */
+        boolean add(long m, boolean printable);
+        /** @return true if both a printable and a non-printable leg of m have been seen. */
+        boolean paired(long m);
+        boolean contains(long m);
+    }
     public void enableMatchTracking(MatchTracker t) { matches = t; }
-    public void matchSeen(long m) { if (matches != null && !matches.add(m)) duplicateMatch++; }
+    public void matchSeen(long m, boolean printable) {
+        if (matches == null) return;
+        if (!matches.add(m, printable)) duplicateMatch++;
+        else if (matches.paired(m)) twoSidedMatches++;
+    }
     public void broken(long m) { if (matches != null && !matches.contains(m)) brokenUnknown++; }
     /** Keeps the first MAX_SAMPLES_PER_KIND offenders of each kind as "kind@msgNo:id@ts" so no kind starves another. */
     void sample(String kind, long msgNo, long id, long ts) {
@@ -30,7 +45,7 @@ public final class Validation {
          .append(",\"noDirectory\":").append(noDirectory).append(",\"crossedInMarket\":").append(crossedInMarket)
          .append(",\"crossedAtResume\":").append(crossedAtResume).append(",\"crossedAtResumeMaxLagNs\":").append(crossedAtResumeMaxLagNs)
          .append(",\"priorityChecked\":").append(priorityChecked).append(",\"priorityViolations\":").append(priorityViolations)
-         .append(",\"duplicateMatch\":").append(duplicateMatch).append(",\"brokenUnknown\":").append(brokenUnknown)
+         .append(",\"duplicateMatch\":").append(duplicateMatch).append(",\"twoSidedMatches\":").append(twoSidedMatches).append(",\"brokenUnknown\":").append(brokenUnknown)
          .append(",\"liveAtC\":").append(liveAtC).append(",\"samples\":[");
         for (int i = 0; i < samples.size(); i++) { if (i > 0) s.append(','); s.append('"').append(samples.get(i)).append('"'); }
         return s.append("]}").toString();
