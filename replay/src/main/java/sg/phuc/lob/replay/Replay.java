@@ -68,7 +68,10 @@ public final class Replay {
     public static Result run(Path file, Config cfg, Set<String> symbols, Listener listener, boolean hist, Validate val) throws IOException {
         OrderPool pool = cfg.pool() ? new OrderPool(1 << 16) : null;
         Engine eng = new Engine(cfg.orderMap(1 << 20), cfg.bookFactory(), listener, symbols, pool, cfg.dedupe());
-        if (listener instanceof DerivedWriter dw) dw.setEngine(eng);
+        for (Listener l : listener instanceof CompositeListener c ? c.listeners() : new Listener[]{listener}) {
+            if (l instanceof DerivedWriter dw) dw.setEngine(eng);
+            if (l instanceof MeatPyExport mx) mx.setEngine(eng);
+        }
         if (val.matches()) {                                  // ~7 M printable matches per day: 2^25 slots, 256 MB; non-printable legs are rare
             LongSet printable = new LongSet(1 << 24), nonPrintable = new LongSet(1 << 16);
             eng.validation().enableMatchTracking(new Validation.MatchTracker() {
@@ -104,7 +107,7 @@ public final class Replay {
 
     public static void main(String[] args) throws IOException {
         Path file = null; Set<String> syms = null; boolean hist = false; Path out = null;
-        String reader = "stream", map = "hash", book = "tree"; boolean pool = false, dedupe = false, validate = false; int dumpN = 0;
+        String reader = "stream", map = "hash", book = "tree", meatpy = null; boolean pool = false, dedupe = false, validate = false, derived = true; int dumpN = 0;
         for (int i = 0; i < args.length; i++) switch (args[i]) {
             case "--file" -> file = Path.of(args[++i]);
             case "--symbols" -> syms = Set.of(args[++i].split(","));
@@ -118,15 +121,21 @@ public final class Replay {
             case "--final" -> { reader = "mmap"; map = "long"; book = "array"; pool = true; dedupe = true; }
             case "--validate" -> validate = true;
             case "--dump-priority" -> dumpN = Integer.parseInt(args[++i]);
+            case "--meatpy" -> meatpy = args[++i];                       // top-of-book at 1-minute marks for one symbol -> DIR/meatpy_SYM.csv
+            case "--no-derived" -> derived = false;                        // with --out: skip the NDJSON writer (validation.json / meatpy only)
             default -> throw new IllegalArgumentException(args[i]);
         }
         if (file == null) throw new IllegalArgumentException("--file is required");
         Config cfg = new Config(reader, map, book, pool, dedupe);
         if (dumpN > 0 && out == null) throw new IllegalArgumentException("--dump-priority needs --out DIR (writes DIR/priority.ndjson)");
         Validate val = new Validate(validate, dumpN > 0 ? out.resolve("priority.ndjson") : null, dumpN);
-        Listener l = out == null ? new NullListener() : new DerivedWriter(out);
+        if (meatpy != null && out == null) throw new IllegalArgumentException("--meatpy needs --out DIR");
+        java.util.List<Listener> ls = new java.util.ArrayList<>();
+        if (out != null && derived) ls.add(new DerivedWriter(out));
+        if (meatpy != null) ls.add(new MeatPyExport(out.resolve("meatpy_" + meatpy + ".csv"), meatpy, 34_200_000_000_000L, 57_600_000_000_000L));
+        Listener l = ls.isEmpty() ? new NullListener() : ls.size() == 1 ? ls.get(0) : new CompositeListener(ls.toArray(new Listener[0]));
         Result r = run(file, cfg, syms, l, hist, val);
-        if (l instanceof DerivedWriter dw) dw.close();
+        for (Listener x : ls) if (x instanceof AutoCloseable c) { try { c.close(); } catch (Exception e) { throw new IOException(e); } }
         if (out != null) Files.writeString(out.resolve("validation.json"), r.validation());
         System.out.println(r);
     }
