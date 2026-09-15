@@ -71,6 +71,7 @@ public final class Replay {
         for (Listener l : listener instanceof CompositeListener c ? c.listeners() : new Listener[]{listener}) {
             if (l instanceof DerivedWriter dw) dw.setEngine(eng);
             if (l instanceof MeatPyExport mx) mx.setEngine(eng);
+            if (l instanceof QueueProbe qp) qp.setEngine(eng);
         }
         if (val.matches()) {                                  // ~7 M printable matches per day: 2^25 slots, 256 MB; non-printable legs are rare
             LongSet printable = new LongSet(1 << 24), nonPrintable = new LongSet(1 << 16);
@@ -105,9 +106,17 @@ public final class Replay {
             (double) alloc / n, eng.liveOrders(), pool == null ? 0 : pool.created(), eng.validation().toJson());
     }
 
+    static Set<String> probeSymbols(String arg) throws IOException {
+        String text = arg.startsWith("@") ? Files.readString(Path.of(arg.substring(1))) : arg;
+        Set<String> s = new java.util.HashSet<>();
+        for (String t : text.split("[,\s]+")) if (!t.isEmpty()) s.add(t);
+        return s;
+    }
+
     public static void main(String[] args) throws IOException {
         Path file = null; Set<String> syms = null; boolean hist = false; Path out = null;
-        String reader = "stream", map = "hash", book = "tree", meatpy = null; boolean pool = false, dedupe = false, validate = false, derived = true; int dumpN = 0;
+        String reader = "stream", map = "hash", book = "tree", meatpy = null, probes = null; boolean pool = false, dedupe = false, validate = false, derived = true; int dumpN = 0;
+        double probeEvery = 1, probeCensor = 60;
         for (int i = 0; i < args.length; i++) switch (args[i]) {
             case "--file" -> file = Path.of(args[++i]);
             case "--symbols" -> syms = Set.of(args[++i].split(","));
@@ -123,6 +132,9 @@ public final class Replay {
             case "--dump-priority" -> dumpN = Integer.parseInt(args[++i]);
             case "--meatpy" -> meatpy = args[++i];                       // top-of-book at 1-minute marks for one symbol -> DIR/meatpy_SYM.csv
             case "--no-derived" -> derived = false;                        // with --out: skip the NDJSON writer (validation.json / meatpy only)
+            case "--probe-symbols" -> probes = args[++i];                  // A,B,C or @file (one symbol per line or comma-separated) -> DIR/episodes.ndjson
+            case "--probe-every" -> probeEvery = Double.parseDouble(args[++i]);     // seconds between joiner samples (default 1)
+            case "--probe-censor" -> probeCensor = Double.parseDouble(args[++i]);   // seconds before an open episode is censored T (default 60)
             default -> throw new IllegalArgumentException(args[i]);
         }
         if (file == null) throw new IllegalArgumentException("--file is required");
@@ -130,9 +142,15 @@ public final class Replay {
         if (dumpN > 0 && out == null) throw new IllegalArgumentException("--dump-priority needs --out DIR (writes DIR/priority.ndjson)");
         Validate val = new Validate(validate, dumpN > 0 ? out.resolve("priority.ndjson") : null, dumpN);
         if (meatpy != null && out == null) throw new IllegalArgumentException("--meatpy needs --out DIR");
+        if (probes != null && out == null) throw new IllegalArgumentException("--probe-symbols needs --out DIR");
         java.util.List<Listener> ls = new java.util.ArrayList<>();
         if (out != null && derived) ls.add(new DerivedWriter(out));
         if (meatpy != null) ls.add(new MeatPyExport(out.resolve("meatpy_" + meatpy + ".csv"), meatpy, 34_200_000_000_000L, 57_600_000_000_000L));
+        if (probes != null) {
+            Files.createDirectories(out);
+            ls.add(new QueueProbe(probeSymbols(probes), (long) (probeEvery * 1e9), (long) (probeCensor * 1e9),
+                new java.io.BufferedWriter(Files.newBufferedWriter(out.resolve("episodes.ndjson"), java.nio.charset.StandardCharsets.US_ASCII), 1 << 20)));
+        }
         Listener l = ls.isEmpty() ? new NullListener() : ls.size() == 1 ? ls.get(0) : new CompositeListener(ls.toArray(new Listener[0]));
         Result r = run(file, cfg, syms, l, hist, val);
         for (Listener x : ls) if (x instanceof AutoCloseable c) { try { c.close(); } catch (Exception e) { throw new IOException(e); } }
