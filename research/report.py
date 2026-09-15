@@ -150,11 +150,13 @@ def main(argv=None):
     ap.add_argument("--memory", default="6GB")
     ap.add_argument("--threads", type=int, default=6)
     ap.add_argument("--skip", default="", help="comma-separated sections to skip: spreads,ofi,queue")
+    ap.add_argument("--reuse", default="", help="comma-separated sections to load from the results CSVs instead of recomputing: spreads,ofi")
     a = ap.parse_args(argv)
     derived, parquet, date = pathlib.Path(a.derived), pathlib.Path(a.parquet), a.date
     results = pathlib.Path(a.results)
     results.mkdir(parents=True, exist_ok=True)
     skip = set(filter(None, a.skip.split(",")))
+    reuse = set(filter(None, a.reuse.split(",")))
     con = db.connect(parquet, date, a.memory, a.threads)
     tiers = db.tier_map(con)
 
@@ -170,11 +172,14 @@ def main(argv=None):
     out += ["## 4. Performance", "", "See `docs/perf.md` (naive -> optimised tables, G1 and Generational ZGC, JFR). Not regenerated here.", ""]
 
     if "spreads" not in skip and db.has_table(con, "executions"):
-        print("spreads...", flush=True)
-        blocks = spreads.block_sums(con)
-        blocks.to_csv(results / f"spread_blocks_{date}.csv", index=False)
-        s = spreads.summarise(blocks)
-        s.to_csv(results / f"spreads_{date}.csv", index=False)
+        if "spreads" in reuse:
+            s = pd.read_csv(results / f"spreads_{date}.csv")
+        else:
+            print("spreads...", flush=True)
+            blocks = spreads.block_sums(con)
+            blocks.to_csv(results / f"spread_blocks_{date}.csv", index=False)
+            s = spreads.summarise(blocks)
+            s.to_csv(results / f"spreads_{date}.csv", index=False)
         chart_spreads(s, results / f"spreads_{date}.png")
         cols = ["tier", "session", "h", "n_exec", "volume", "eff", "eff_lo", "eff_hi", "real", "real_lo", "real_hi", "impact", "impact_lo", "impact_hi"]
         out += ["## 5. Spreads by tier x session x horizon (volume-weighted bps; 95 % CI by 5-minute block bootstrap)", "",
@@ -182,12 +187,15 @@ def main(argv=None):
                 f"![spreads](spreads_{date}.png)", ""]
 
     if "ofi" not in skip and db.has_table(con, "bbo"):
-        print("ofi...", flush=True)
-        sums = ofi.regression_sums(con)
-        per = ofi.per_symbol(sums)
-        per.to_csv(results / f"ofi_symbols_{date}.csv", index=False)
-        o = ofi.summarise(per, tiers)
-        o.to_csv(results / f"ofi_{date}.csv", index=False)
+        if "ofi" in reuse:
+            o = pd.read_csv(results / f"ofi_{date}.csv")
+        else:
+            print("ofi...", flush=True)
+            sums = ofi.regression_sums(con)
+            per = ofi.per_symbol(sums)
+            per.to_csv(results / f"ofi_symbols_{date}.csv", index=False)
+            o = ofi.summarise(per, tiers)
+            o.to_csv(results / f"ofi_{date}.csv", index=False)
         out += ["## 6. OFI: 1-second mid change (ticks) on OFI, per-symbol OLS, in-sample first 70 % of each session", "",
                 "Medians across symbols with at least 30 in-sample and 10 out-of-sample windows; `beta` in ticks per share.", "", md(o, ".4f"), ""]
 

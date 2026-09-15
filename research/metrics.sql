@@ -9,10 +9,11 @@ create or replace macro session_start(s) as
 create or replace macro session_end(s) as
   case when s = 'open' then 36000000000000 when s = 'midday' then 55800000000000 else 57600000000000 end;
 
--- mid in price units; only a proper two-sided, uncrossed quote defines one
+-- mid in price units; only a proper two-sided, uncrossed quote defines one, and a stub quote (relative spread >= 100 %,
+-- e.g. bid $0.01 against an ask near the $200,000 maximum) is no quote at all: 2,923 such rows on 318 symbols on 12302019.
 create or replace view bbo_mid as
 select sym, ts, bid, bidSh, ask, askSh, (bid + ask) / 2.0 as mid
-from bbo where bid > 0 and ask > 0 and bid < ask;
+from bbo where bid > 0 and ask > 0 and bid < ask and ask < 3 * bid;
 
 -- signed executions (D23): the resting side is what the feed reports; resting 'B' means a sell aggressor (d = -1),
 -- resting 'S' a buy aggressor (d = +1). E and printable C only, market hours only. P and Q are unsigned and excluded.
