@@ -62,10 +62,9 @@ def chart_queue(groups: pd.DataFrame, path: pathlib.Path, T_list=queues.T_LIST):
             up = [r[f"p_fill_upper_{T}s"].iloc[0] for T in T_list]
             ax.plot(xs, lo, color=TIER_COLOR[tier], linewidth=2, marker="o", markersize=6, label=tier)
             ax.plot(xs, up, color=TIER_COLOR[tier], linewidth=2, linestyle=(0, (4, 3)), marker="o", markersize=6, markerfacecolor=SURFACE)
-            ax.annotate(tier, (xs[-1], lo[-1]), xytext=(6, 0), textcoords="offset points", color=INK2, fontsize=8, va="center")
         ax.set_xticks(xs, [f"{T} s" for T in T_list])
         style(ax, f"{session}", "T", "P(fill within T)" if session == "open" else "")
-        ax.set_ylim(0, 1)
+        ax.set_ylim(0, max(0.2, min(1.0, float(groups[[f"p_fill_upper_{T}s" for T in T_list]].max().max()) * 1.15)))
     axes[0].legend(title="tier (solid: fills only; dashed: + exhausted)", frameon=False, fontsize=8, title_fontsize=8, loc="upper left")
     fig.suptitle("Joiner at the touch: fill probability within T, both sides pooled", x=0.01, ha="left", color=INK, fontsize=12)
     fig.tight_layout()
@@ -81,9 +80,8 @@ def chart_conditional(cond: pd.DataFrame, path: pathlib.Path, T: int = 5):
             continue
         ax.plot(r["decile"], r["p_fill"], color=TIER_COLOR[tier], linewidth=2, marker="o", markersize=6, label=tier)
         ax.plot(r["decile"], r["p_fill_upper"], color=TIER_COLOR[tier], linewidth=2, linestyle=(0, (4, 3)), marker="o", markersize=6, markerfacecolor=SURFACE)
-        ax.annotate(tier, (r["decile"].iloc[-1], r["p_fill"].iloc[-1]), xytext=(6, 0), textcoords="offset points", color=INK2, fontsize=8, va="center")
     ax.set_xticks(range(1, 11))
-    ax.set_ylim(0, 1)
+    ax.set_ylim(0, max(0.2, min(1.0, float(cond["p_fill_upper"].max()) * 1.15)))
     style(ax, f"P(fill within {T} s) by initial queue size ahead, within-tier deciles (1 = smallest)", "ahead0 decile", f"P(fill within {T} s)")
     ax.legend(title="tier (solid: fills only; dashed: + exhausted)", frameon=False, fontsize=8, title_fontsize=8, loc="upper right")
     fig.tight_layout()
@@ -101,7 +99,7 @@ def chart_spreads(s: pd.DataFrame, path: pathlib.Path):
             r = g[g["tier"].astype(str) == tier].set_index(g[g["tier"].astype(str) == tier]["h"].astype(str))
             if r.empty:
                 continue
-            ax.plot(xs, [r.loc[h, "real"] for h in hs], color=TIER_COLOR[tier], linewidth=2, marker="o", markersize=6, label=f"{tier} realised")
+            ax.plot(xs, [r.loc[h, "real"] for h in hs], color=TIER_COLOR[tier], linewidth=2, marker="o", markersize=6, label=tier)
             ax.plot(xs, [r.loc[h, "impact"] for h in hs], color=TIER_COLOR[tier], linewidth=2, linestyle=(0, (4, 3)), marker="o", markersize=6, markerfacecolor=SURFACE)
             ax.axhline(r["eff"].iloc[0], color=TIER_COLOR[tier], linewidth=1, alpha=0.5)
         ax.set_xticks(xs, hs)
@@ -188,16 +186,16 @@ def main(argv=None):
 
     if "ofi" not in skip and db.has_table(con, "bbo"):
         if "ofi" in reuse:
-            o = pd.read_csv(results / f"ofi_{date}.csv")
+            per = pd.read_csv(results / f"ofi_symbols_{date}.csv")
         else:
             print("ofi...", flush=True)
-            sums = ofi.regression_sums(con)
-            per = ofi.per_symbol(sums)
+            per = ofi.per_symbol(ofi.regression_sums(con))
             per.to_csv(results / f"ofi_symbols_{date}.csv", index=False)
-            o = ofi.summarise(per, tiers)
-            o.to_csv(results / f"ofi_{date}.csv", index=False)
+        o = ofi.summarise(per, tiers)
+        o.to_csv(results / f"ofi_{date}.csv", index=False)
         out += ["## 6. OFI: 1-second mid change (ticks) on OFI, per-symbol OLS, in-sample first 70 % of each session", "",
-                "Medians across symbols with at least 30 in-sample and 10 out-of-sample windows; `beta` in ticks per share.", "", md(o, ".4f"), ""]
+                "Medians and quartiles across symbols with at least 30 in-sample and 10 out-of-sample windows; `beta` in ticks of mid change per",
+                "1,000 shares of imbalance; `share_r2_out_pos` = fraction of symbols whose out-of-sample R^2 is positive.", "", md(o, ".3f"), ""]
 
     if "queue" not in skip and db.has_table(con, "episodes"):
         print("queue...", flush=True)

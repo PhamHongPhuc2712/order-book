@@ -69,13 +69,15 @@ def per_symbol(sums: pd.DataFrame) -> pd.DataFrame:
 
 
 def summarise(per_sym: pd.DataFrame, tiers: dict) -> pd.DataFrame:
+    """Medians and quartiles across symbols by tier x session; beta reported in ticks per 1,000 shares."""
     p = per_sym.copy()
     p["tier"] = p["sym"].map(tiers)
     p = p.dropna(subset=["tier", "beta"])
     rows = []
     for (tier, session), g in p.groupby(["tier", "session"]):
+        b = g["beta"] * 1000                                   # ticks per 1,000 shares of imbalance
         rows.append({"tier": tier, "session": session, "symbols": len(g),
-                     "beta_med": g["beta"].median(), "beta_q1": g["beta"].quantile(0.25), "beta_q3": g["beta"].quantile(0.75),
+                     "beta_med": b.median(), "beta_q1": b.quantile(0.25), "beta_q3": b.quantile(0.75),
                      "r2_in_med": g["r2_in"].median(), "r2_out_med": g["r2_out"].median(),
                      "r2_out_q1": g["r2_out"].quantile(0.25), "r2_out_q3": g["r2_out"].quantile(0.75),
                      "share_r2_out_pos": float((g["r2_out"] > 0).mean())})
