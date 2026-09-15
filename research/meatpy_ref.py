@@ -9,6 +9,7 @@ Output columns: Timestamp, Type (Bid/Ask), Level, Price, Volume, N Orders — on
 import datetime
 import sys
 import time
+from collections import Counter
 
 from meatpy.event_handlers.lob_recorder import LOBRecorder
 from meatpy.itch50 import ITCH50MarketProcessor, ITCH50MessageReader
@@ -43,9 +44,11 @@ def main(argv):
 
     t0 = time.time()
     n = 0
+    by_type = Counter()      # message class -> count over the whole file, for the per-type comparison with Probe
     unresolved = 0            # MeatPy applies an out-of-FIFO fill, forgives it if the blamed head fills at the same timestamp,
     reader = ITCH50MessageReader()  # and raises the rest out of process_message: count them, the book is already updated
     for msg in reader.read_file(path):
+        by_type[type(msg).__name__] += 1
         try:
             proc.process_message(msg)
         except ExecutionPriorityExceptionList as e:
@@ -58,6 +61,8 @@ def main(argv):
     writer.close()
     print(f"done: {n:,} messages in {time.time() - t0:,.0f} s; marks not reached: {len(rec.record_timestamps)}; "
           f"unresolved priority exceptions (MeatPy's own check): {unresolved}", flush=True)
+    for name, c in sorted(by_type.items(), key=lambda kv: -kv[1]):
+        print(f"  {name} {c}", flush=True)
 
 
 if __name__ == "__main__":
