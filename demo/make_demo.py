@@ -26,15 +26,13 @@ def perf(path: pathlib.Path):
     if not path or not path.exists():
         return None
     text = path.read_text(encoding="utf-8", errors="replace").replace("\r", " ")
-    sub, full = None, []
-    for line in text.split("\n"):
-        m = LINE.match(" ".join(line.split()))
-        if not m or m["row"] != "+dedupe" or not m["gc"].startswith("G1"):
-            continue
-        if "sub" in m["file"]:
-            sub = sub or m
-        else:
-            full.append(int(m["msgs"]) / num(m["wall"]))
+    rows = [m for m in (LINE.match(" ".join(l.split())) for l in text.split("\n")) if m and m["row"] == "+dedupe" and m["gc"].startswith("G1")]
+    gcs = sorted({m["gc"] for m in rows}, key=lambda g: (g != "G1@8g", g))     # the docs/perf.md headline table (8 GB, median of 3) first
+    if not gcs:
+        return None
+    rows = [m for m in rows if m["gc"] == gcs[0]]
+    sub = next((m for m in rows if "sub" in m["file"]), None)
+    full = [int(m["msgs"]) / num(m["wall"]) for m in rows if "sub" not in m["file"]]
     if not sub:
         return None
     return {"p50": int(sub["p50"]), "p90": int(sub["p90"]), "p99": int(sub["p99"]), "p999": int(sub["p999"]), "max": int(sub["max"]),
