@@ -26,7 +26,14 @@ def perf(path: pathlib.Path):
     if not path or not path.exists():
         return None
     text = path.read_text(encoding="utf-8", errors="replace").replace("\r", " ")
-    rows = [m for m in (LINE.match(" ".join(l.split())) for l in text.split("\n")) if m and m["row"] == "+dedupe" and m["gc"].startswith("G1")]
+    lines = []
+    for l in text.split("\n"):                       # early records carry the "apply ns:" part on the next line
+        l = " ".join(l.split())
+        if l.startswith("apply ns:") and lines:
+            lines[-1] += " " + l
+        else:
+            lines.append(l)
+    rows = [m for m in (LINE.match(l) for l in lines) if m and m["row"] == "+dedupe" and m["gc"].startswith("G1")]
     gcs = sorted({m["gc"] for m in rows}, key=lambda g: (g not in ("G1", "G1@8g"), g))   # the docs/perf.md headline table (8 GB, median of 3; untagged rows ran at 8g) first
     if not gcs:
         return None
