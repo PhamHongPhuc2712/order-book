@@ -53,6 +53,8 @@ public final class ArrayBook implements Book {
         for (int i = 0; i < na; i++) n += al[i].count;
         return n;
     }
-    /** Level at depth index (0 = best) on a side, or null. Used by ladder/demo writers; not on the hot path. */
-    public Level levelAt(byte s, int index) { return s == 'B' ? (index < nb ? bl[index] : null) : (index < na ? al[index] : null); }
+    @Override public Level levelAt(byte s, int index) {
+        if (index < 0) return null;
+        return s == 'B' ? (index < nb ? bl[index] : null) : (index < na ? al[index] : null);
+    }
 }

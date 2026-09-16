@@ -9,4 +9,6 @@ public interface Book {
     int levels(byte side);
     /** Total live orders on both sides. Not on the hot path; used for end-of-day reporting. */
     int orderCount();
+    /** Level at depth index (0 = best) on a side, or null. Not on the hot path; used by ladder/demo writers. */
+    Level levelAt(byte side, int index);
 }

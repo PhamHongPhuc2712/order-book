@@ -128,8 +128,10 @@ def validation_section(derived: pathlib.Path) -> str:
 
 
 def meatpy_section(derived: pathlib.Path, date: str) -> str:
-    ours = derived.parent / f"{date}_meatpy" / "meatpy_AAPL.csv"
-    ref = HERE / "out" / f"meatpy_{date}_AAPL.csv"
+    ours = derived / "meatpy_AAPL.csv"                                  # written by Replay --meatpy AAPL (make.ps1)
+    if not ours.exists():
+        ours = derived.parent / f"{date}_meatpy" / "meatpy_AAPL.csv"    # the Phase 3 Task 3 location
+    ref = HERE / "out" / f"meatpy_{date}_AAPL.csv"                      # MeatPy's own output (meatpy_ref.py, ~1 h per day)
     if not (ours.exists() and ref.exists()):
         return f"_not run on this day (need {ours.name} and {ref.name})_\n"
     import meatpy_diff

@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>lob-reconstruct — AAPL through the opening cross</title>
+<style>
+  :root { --bg:#fcfcfb; --ink:#0b0b0b; --ink2:#52514e; --line:#e6e5e1; --bid:#2a78d6; --ask:#eb6834; --mark:#1baf7a; --cross:#eda100; }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:20px 16px 40px; background:var(--bg); color:var(--ink); font:14px/1.45 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  h1 { font-size:20px; margin:0 0 4px; }
+  .sub { color:var(--ink2); margin:0 0 16px; }
+  .wrap { max-width:960px; margin:0 auto; }
+  .bar { display:flex; flex-wrap:wrap; gap:8px 14px; align-items:center; margin-bottom:12px; }
+  button { font:inherit; padding:6px 12px; border:1px solid var(--line); background:#fff; border-radius:6px; cursor:pointer; }
+  button.on { background:var(--ink); color:#fff; border-color:var(--ink); }
+  .clock { font-variant-numeric: tabular-nums; font-size:22px; font-weight:600; min-width:150px; }
+  .state { color:var(--ink2); }
+  .state b { color:var(--ink); }
+  input[type=range] { width:100%; }
+  table { border-collapse:collapse; width:100%; font-variant-numeric: tabular-nums; }
+  th { text-align:right; color:var(--ink2); font-weight:500; padding:4px 8px; border-bottom:1px solid var(--line); font-size:12px; }
+  th:first-child, td:first-child { text-align:left; }
+  td { padding:3px 8px; text-align:right; white-space:nowrap; }
+  tr.ask td.px { color:var(--ask); }
+  tr.bid td.px { color:var(--bid); }
+  tr.mid td { border-top:1px solid var(--line); border-bottom:1px solid var(--line); color:var(--ink2); font-size:12px; text-align:center; padding:6px; }
+  td.depth { position:relative; width:40%; padding:0 8px; }
+  td.depth i { position:absolute; top:3px; bottom:3px; right:0; opacity:.16; }
+  tr.ask td.depth i { background:var(--ask); }
+  tr.bid td.depth i { background:var(--bid); }
+  td.depth span { position:relative; }
+  .marker { margin:10px 0; padding:8px 12px; border-left:3px solid var(--cross); background:#fff8e6; display:none; }
+  .marker.on { display:block; }
+  .events { margin-top:10px; color:var(--ink2); font-size:12px; }
+  .cap { margin-top:24px; color:var(--ink2); font-size:12px; border-top:1px solid var(--line); padding-top:10px; }
+  .crossed { color:var(--ask); font-weight:600; }
+  @media (max-width:520px) { td.depth { display:none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1 id="title">Level-3 order book replay</h1>
+  <p class="sub" id="subtitle">Ten levels each side, with the number of resting orders at each price, replayed from NASDAQ TotalView-ITCH 5.0 through the opening cross.</p>
+  <div class="bar">
+    <button id="play">Play</button>
+    <span>speed</span>
+    <button class="spd on" data-s="1">1×</button><button class="spd" data-s="10">10×</button><button class="spd" data-s="100">100×</button>
+    <span class="clock" id="clock">--:--:--.---</span>
+    <span class="state" id="state"></span>
+  </div>
+  <input type="range" id="scrub" min="0" max="0" value="0">
+  <div class="marker" id="marker"></div>
+  <table>
+    <thead><tr><th>side</th><th>price</th><th>shares</th><th>orders</th><th>depth</th></tr></thead>
+    <tbody id="ladder"></tbody>
+  </table>
+  <div class="events" id="events"></div>
+  <div class="cap" id="cap"></div>
+</div>
+<script src="data.js"></script>
+<script>
+(function () {
+  const S = window.SLICE || [], META = window.META || {}, PERF = window.PERF;
+  const snaps = S.filter(r => r.b), marks = S.filter(r => !r.b);
+  if (!snaps.length) { document.getElementById('state').textContent = 'no data.js — run demo/make_demo.py'; return; }
+  document.getElementById('title').textContent = `${META.symbol || ''} through the opening cross — ${META.date || ''}`;
+  const clock = document.getElementById('clock'), state = document.getElementById('state'), ladder = document.getElementById('ladder');
+  const scrub = document.getElementById('scrub'), marker = document.getElementById('marker'), events = document.getElementById('events');
+  scrub.max = snaps.length - 1;
+  const fmtT = ns => { const ms = Math.floor(ns / 1e6); const h = Math.floor(ms / 3.6e6), m = Math.floor(ms / 6e4) % 60, s = Math.floor(ms / 1e3) % 60, f = ms % 1000;
+    return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}.${String(f).padStart(3,'0')}`; };
+  const fmtN = n => n.toLocaleString('en-US');
+  let i = 0, playing = false, speed = 1, last = 0, simT = snaps[0].t;
+  function render(k) {
+    i = k; const s = snaps[k]; simT = Math.max(simT, s.t);
+    clock.textContent = fmtT(s.t); scrub.value = k;
+    const bb = s.b.length ? s.b[0][0] : null, ba = s.a.length ? s.a[0][0] : null;
+    const crossed = bb !== null && ba !== null && bb >= ba;
+    state.innerHTML = crossed ? `<span class="crossed">book crossed</span> (pre-open: the opening cross resolves it)` :
+      (bb !== null && ba !== null ? `spread <b>$${(ba - bb).toFixed(2)}</b>` : '');
+    const maxSh = Math.max(1, ...s.b.map(l => l[1]), ...s.a.map(l => l[1]));
+    let html = '';
+    for (let j = s.a.length - 1; j >= 0; j--) html += row('ask', s.a[j], maxSh);
+    html += `<tr class="mid"><td colspan="5">${crossed ? 'crossed' : (bb !== null && ba !== null ? 'mid $' + ((bb + ba) / 2).toFixed(3) : '')}</td></tr>`;
+    for (const l of s.b) html += row('bid', l, maxSh);
+    ladder.innerHTML = html;
+    const seen = marks.filter(m => m.t <= s.t);
+    const cross = seen.filter(m => m.cross).slice(-1)[0];
+    if (cross && s.t - cross.t < 30e9) { marker.classList.add('on');
+      marker.textContent = `${fmtT(cross.t)} — Q cross trade (type ${cross.cross}): ${fmtN(cross.shares)} shares at $${cross.price.toFixed(2)}`; }
+    else marker.classList.remove('on');
+    events.textContent = seen.map(m => m.cross ? `${fmtT(m.t)} cross ${m.cross} ${fmtN(m.shares)} @ $${m.price.toFixed(2)}` : `${fmtT(m.t)} system event ${m.system}${m.system === 'Q' ? ' (market open)' : ''}`).join('  ·  ');
+  }
+  function row(side, l, maxSh) {
+    const w = Math.round(100 * l[1] / maxSh);
+    return `<tr class="${side}"><td>${side}</td><td class="px">$${l[0].toFixed(2)}</td><td>${fmtN(l[1])}</td><td>${fmtN(l[2])}</td><td class="depth"><i style="width:${w}%"></i><span></span></td></tr>`;
+  }
+  function tick(now) {
+    if (!playing) return;
+    if (last) { simT += (now - last) * 1e6 * speed; let k = i; while (k + 1 < snaps.length && snaps[k + 1].t <= simT) k++; if (k !== i) render(k); }
+    last = now;
+    if (i >= snaps.length - 1) { playing = false; document.getElementById('play').textContent = 'Replay'; last = 0; return; }
+    requestAnimationFrame(tick);
+  }
+  document.getElementById('play').onclick = function () {
+    if (i >= snaps.length - 1) { simT = snaps[0].t; render(0); }
+    playing = !playing; this.textContent = playing ? 'Pause' : 'Play'; last = 0; if (playing) requestAnimationFrame(tick);
+  };
+  document.querySelectorAll('.spd').forEach(b => b.onclick = () => { speed = +b.dataset.s; document.querySelectorAll('.spd').forEach(x => x.classList.toggle('on', x === b)); });
+  scrub.oninput = () => { simT = snaps[+scrub.value].t; render(+scrub.value); };
+  const cap = document.getElementById('cap');
+  cap.textContent = `${fmtN(snaps.length)} snapshots on a 100 ms grid (only grid points where the top of book changed). ` +
+    (PERF ? `Engine apply latency on the 20-symbol subset, final configuration (${PERF.gc}): p50 ${fmtN(PERF.p50)} ns · p90 ${fmtN(PERF.p90)} ns · p99 ${fmtN(PERF.p99)} ns · p99.9 ${fmtN(PERF.p999)} ns · max ${(PERF.max / 1e6).toFixed(1)} ms` +
+      (PERF.msgsPerSec ? `; full day ${fmtN(PERF.msgsPerSec)} msgs/s single-threaded.` : '.') : 'Latency percentiles: see docs/perf.md.');
+  render(0);
+})();
+</script>
+</body>
+</html>

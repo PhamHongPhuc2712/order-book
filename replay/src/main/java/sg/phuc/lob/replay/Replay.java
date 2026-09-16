@@ -72,6 +72,7 @@ public final class Replay {
             if (l instanceof DerivedWriter dw) dw.setEngine(eng);
             if (l instanceof MeatPyExport mx) mx.setEngine(eng);
             if (l instanceof QueueProbe qp) qp.setEngine(eng);
+            if (l instanceof LadderWriter lw) lw.setEngine(eng);
         }
         if (val.matches()) {                                  // ~7 M printable matches per day: 2^25 slots, 256 MB; non-printable legs are rare
             LongSet printable = new LongSet(1 << 24), nonPrintable = new LongSet(1 << 16);
@@ -115,7 +116,9 @@ public final class Replay {
 
     public static void main(String[] args) throws IOException {
         Path file = null; Set<String> syms = null; boolean hist = false; Path out = null;
-        String reader = "stream", map = "hash", book = "tree", meatpy = null, probes = null; boolean pool = false, dedupe = false, validate = false, derived = true; int dumpN = 0;
+        String reader = "stream", map = "hash", book = "tree", meatpy = null, probes = null, ladder = null;
+        long ladderFrom = 33_880_000_000_000L, ladderTo = 34_320_000_000_000L;   // 9:28:00 .. 9:32:00, through the opening cross
+        boolean pool = false, dedupe = false, validate = false, derived = true; int dumpN = 0;
         double probeEvery = 1, probeCensor = 60;
         for (int i = 0; i < args.length; i++) switch (args[i]) {
             case "--file" -> file = Path.of(args[++i]);
@@ -135,6 +138,9 @@ public final class Replay {
             case "--probe-symbols" -> probes = args[++i];                  // A,B,C or @file (one symbol per line or comma-separated) -> DIR/episodes.ndjson
             case "--probe-every" -> probeEvery = Double.parseDouble(args[++i]);     // seconds between joiner samples (default 1)
             case "--probe-censor" -> probeCensor = Double.parseDouble(args[++i]);   // seconds before an open episode is censored T (default 60)
+            case "--ladder" -> ladder = args[++i];                        // top-10 ladder of one symbol on a 100 ms grid -> DIR/ladder_SYM.ndjson (demo)
+            case "--ladder-from" -> ladderFrom = Long.parseLong(args[++i]);
+            case "--ladder-to" -> ladderTo = Long.parseLong(args[++i]);
             default -> throw new IllegalArgumentException(args[i]);
         }
         if (file == null) throw new IllegalArgumentException("--file is required");
@@ -143,9 +149,15 @@ public final class Replay {
         Validate val = new Validate(validate, dumpN > 0 ? out.resolve("priority.ndjson") : null, dumpN);
         if (meatpy != null && out == null) throw new IllegalArgumentException("--meatpy needs --out DIR");
         if (probes != null && out == null) throw new IllegalArgumentException("--probe-symbols needs --out DIR");
+        if (ladder != null && out == null) throw new IllegalArgumentException("--ladder needs --out DIR");
         java.util.List<Listener> ls = new java.util.ArrayList<>();
         if (out != null && derived) ls.add(new DerivedWriter(out));
         if (meatpy != null) ls.add(new MeatPyExport(out.resolve("meatpy_" + meatpy + ".csv"), meatpy, 34_200_000_000_000L, 57_600_000_000_000L));
+        if (ladder != null) {
+            Files.createDirectories(out);
+            ls.add(new LadderWriter(ladder, ladderFrom, ladderTo, 100_000_000L, 10,
+                new java.io.BufferedWriter(Files.newBufferedWriter(out.resolve("ladder_" + ladder + ".ndjson"), java.nio.charset.StandardCharsets.US_ASCII), 1 << 20)));
+        }
         if (probes != null) {
             Files.createDirectories(out);
             ls.add(new QueueProbe(probeSymbols(probes), (long) (probeEvery * 1e9), (long) (probeCensor * 1e9),
