@@ -38,6 +38,7 @@ def summarise(blocks: pd.DataFrame, boot: int = BOOT, seed: int = 0) -> pd.DataF
     """Volume-weighted means per tier x session x horizon and 95 % block-bootstrap CIs."""
     rng = np.random.default_rng(seed)
     rows = []
+    blocks = blocks.sort_values(["tier", "session", "h", "block"]).reset_index(drop=True)   # deterministic resampling
     for (tier, session, h), g in blocks.groupby(["tier", "session", "h"]):
         w = g["vol"].to_numpy(dtype=float)
         tot = w.sum()

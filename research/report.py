@@ -173,13 +173,13 @@ def main(argv=None):
 
     if "spreads" not in skip and db.has_table(con, "executions"):
         if "spreads" in reuse:
-            s = pd.read_csv(results / f"spreads_{date}.csv")
+            blocks = pd.read_csv(results / f"spread_blocks_{date}.csv")
         else:
             print("spreads...", flush=True)
             blocks = spreads.block_sums(con)
             blocks.to_csv(results / f"spread_blocks_{date}.csv", index=False)
-            s = spreads.summarise(blocks)
-            s.to_csv(results / f"spreads_{date}.csv", index=False)
+        s = spreads.summarise(blocks)
+        s.to_csv(results / f"spreads_{date}.csv", index=False)
         chart_spreads(s, results / f"spreads_{date}.png")
         cols = ["tier", "session", "h", "n_exec", "volume", "eff", "eff_lo", "eff_hi", "real", "real_lo", "real_hi", "impact", "impact_lo", "impact_hi"]
         out += ["## 5. Spreads by tier x session x horizon (volume-weighted bps; 95 % CI by 5-minute block bootstrap)", "",

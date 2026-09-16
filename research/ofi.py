@@ -65,7 +65,7 @@ def per_symbol(sums: pd.DataFrame) -> pd.DataFrame:
         a, b, r2 = fit_from_sums(i.n, i.sx, i.sy, i.sxx, i.sxy, i.syy)
         rows.append({"sym": sym, "session": session, "n_in": int(i.n), "n_out": int(o.n), "beta": b, "r2_in": r2,
                      "r2_out": oos_r2(a, b, o.n, o.sx, o.sy, o.sxx, o.sxy, o.syy)})
-    return pd.DataFrame(rows, columns=["sym", "session", "n_in", "n_out", "beta", "r2_in", "r2_out"])
+    return pd.DataFrame(rows, columns=["sym", "session", "n_in", "n_out", "beta", "r2_in", "r2_out"]).sort_values(["sym", "session"]).reset_index(drop=True)
 
 
 def summarise(per_sym: pd.DataFrame, tiers: dict) -> pd.DataFrame:
