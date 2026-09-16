@@ -27,7 +27,7 @@ def perf(path: pathlib.Path):
         return None
     text = path.read_text(encoding="utf-8", errors="replace").replace("\r", " ")
     rows = [m for m in (LINE.match(" ".join(l.split())) for l in text.split("\n")) if m and m["row"] == "+dedupe" and m["gc"].startswith("G1")]
-    gcs = sorted({m["gc"] for m in rows}, key=lambda g: (g != "G1@8g", g))     # the docs/perf.md headline table (8 GB, median of 3) first
+    gcs = sorted({m["gc"] for m in rows}, key=lambda g: (g not in ("G1", "G1@8g"), g))   # the docs/perf.md headline table (8 GB, median of 3; untagged rows ran at 8g) first
     if not gcs:
         return None
     rows = [m for m in rows if m["gc"] == gcs[0]]
