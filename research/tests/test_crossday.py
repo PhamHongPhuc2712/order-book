@@ -69,7 +69,8 @@ def test_build_reads_every_stage(tmp_path, monkeypatch):
     assert "burst 83.8 %, isolated 16.2 %, off-best 0, gate 0" in text
     assert "differing=0" in text
     assert "3.2 % – 24.0 %" in text                                     # P(fill <= 5 s) band, top100 midday
-    assert "| P(fill ≤ 5 s), smallest ahead0 decile (upper) | 50.6% |" in text
+    assert "| cancellation share of queue movement | 88.0 % |" in text
+    assert "| P(fill ≤ 5 s), smallest ahead0 decile (upper) | 50.6 % |" in text
     assert "| realised spread at 30 s (bps) | -15.6 |" in text
     assert "| OFI out-of-sample R², median symbol | 0.483 |" in text
 

@@ -121,6 +121,11 @@ def fmt(x, spec="{:,.0f}"):
     return DASH if x is None or (isinstance(x, float) and pd.isna(x)) else spec.format(x)
 
 
+def pct(x, places=1):
+    """A share as a percentage, spaced the way every other table in the project writes it."""
+    return DASH if x is None or (isinstance(x, float) and pd.isna(x)) else f"{100 * x:.{places}f} %"
+
+
 def table(title: str, rows: list, days: list, note: str = "") -> list:
     """rows = [(label, [cell per day])]; every cell already a string."""
     out = [title, ""]
@@ -188,15 +193,15 @@ def correctness_rows(facts: list) -> list:
 
 
 def research_rows(facts: list, tier="top100", session="midday") -> list:
-    def q(f, col, spec="{:.1%}"):
-        return fmt(pick(f["queue"], col, tier=tier, session=session), spec)
+    def q(f, col):
+        return pct(pick(f["queue"], col, tier=tier, session=session))
 
     def band(f, lo, up):
         a, b = pick(f["queue"], lo, tier=tier, session=session), pick(f["queue"], up, tier=tier, session=session)
         return DASH if a is None or b is None else f"{100 * a:.1f} % – {100 * b:.1f} %"
 
     def dec(f, decile, col="p_fill_upper"):
-        return fmt(pick(f["cond"], col, tier=tier, decile=decile), "{:.1%}")
+        return pct(pick(f["cond"], col, tier=tier, decile=decile))
 
     def sp(f, col, h="30s"):
         return fmt(pick(f["spreads"], col, tier=tier, session=session, h=h), "{:.1f}")
