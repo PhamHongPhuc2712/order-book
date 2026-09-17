@@ -141,6 +141,11 @@ powershell -ExecutionPolicy Bypass -File ops/make.ps1 -Day 12302019 -Gz 12302019
 python demo/make_demo.py --ladder data/derived/12302019/ladder_AAPL.ndjson --symbol AAPL --date 12302019 --perf data/perf/12302019.txt
 ```
 
+Every step runs as its own process with its exit code checked and its stderr kept next to its log, so a stage that dies
+stops the day instead of leaving a half-written result behind. `bash ops/run_days.sh` does every day in `ops/days.txt`
+one at a time and finishes with `research/crossday.py`, which reads the per-day generated files back and writes
+[`research/results/crossday.md`](research/results/crossday.md) — the cross-day tables quoted above.
+
 `mvn -B verify` runs the Java tests (unit, jqwik property, golden, corruption); `cd research && python -m pytest` the Python ones.
 `ops/bench.sh` reproduces the performance matrix. Single runs of any stage: `java -cp … sg.phuc.lob.replay.Replay --help`-style
 flags are listed at the top of `Replay.java`.

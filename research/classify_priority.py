@@ -11,6 +11,7 @@ Buckets (spec plan, refined with what the dump can see):
 Each bucket gets counts and a few summary statistics; the numbers go to numbers.md verbatim.
 """
 import argparse
+import json
 import pathlib
 
 import pandas as pd
@@ -26,6 +27,15 @@ def main():
     n = len(v)
     print(f"violations dumped: {n:,}")
 
+    # The dump is capped by Replay --dump-priority N, so say whether these are all of the day's violations or the
+    # first N of them: every share below is a share of what was dumped, not of the population, when it is a sample.
+    total = None
+    vj = d / "validation.json"
+    if vj.exists():
+        total = json.loads(vj.read_text(encoding="utf-8")).get("priorityViolations")
+    coverage = (f"Violations dumped: **{n:,}**" if total is None else
+                f"Violations classified: **{n:,}** of **{total:,}**" + (" (all of them)" if n >= total else " (the first ones dumped; the shares below are of the sample)"))
+
     # burst size: executions on the same symbol at the same nanosecond, from the full derived executions table
     ex = pd.read_json(d / "executions.ndjson", lines=True, dtype={"ts": "int64"})[["ts", "sym", "side"]]
     burst = ex.groupby(["sym", "ts"]).size().rename("burstSize").reset_index()
@@ -39,7 +49,7 @@ def main():
     # sanity: nothing at head should ever be here
     assert not v["isHead"].any(), "a violation with isHead=true means the check itself is wrong"
 
-    lines = [f"# Priority-violation classification — {d.name}", "", f"Violations dumped: **{n:,}**", "",
+    lines = [f"# Priority-violation classification — {d.name}", "", coverage, "",
              "| bucket | count | share | median queuePos | median levelCount | median burstSize | median execShares |", "|---|---|---|---|---|---|---|"]
     for b in ["burst", "isolated", "off_best", "gate_bug"]:
         g = v[v["bucket"] == b]

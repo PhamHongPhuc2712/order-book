@@ -55,7 +55,12 @@ try {
   }
 
   if ((Step "gunzip") -and -not (Test-Path $bin)) {
-    Native "gunzip" "bash" @("-c", "gzip -dk -c data/itch/$Gz > data/itch/$Day.bin") "$out\gunzip.txt"
+    # One pre-quoted string, not an array: Start-Process joins array elements with spaces without quoting them, which
+    # would hand bash the redirect and every word of the script as separate arguments.
+    Native "gunzip" "bash" "-c `"gzip -dk -c data/itch/$Gz > data/itch/$Day.bin`"" "$out\gunzip.txt"
+    $size = if (Test-Path $bin) { (Get-Item $bin).Length } else { 0 }
+    if ($size -lt 1MB) { throw "gunzip left no usable $bin for $Day ($size bytes)" }
+    Write-Output "   $bin is $('{0:N0}' -f $size) bytes"
   }
   if (Step "probe") {
     Native "probe" $java @("-cp", $cp, "sg.phuc.lob.replay.Probe", $bin) "$out\probe.txt"
@@ -65,8 +70,10 @@ try {
     Native "filter" $java @("-cp", $cp, "sg.phuc.lob.replay.Filter", $bin, $sub, $Symbols) "$out\filter.txt"
   }
   if (Step "replay") {
+    # The dump cap is above any day's violation count (~10 k), so the classification covers the population rather than
+    # a 500-row sample and the three days are comparable. One line per violation; the file stays a few MB.
     Native "replay" $java ($jvm + @("-cp", $cp, "sg.phuc.lob.replay.Replay", "--file", $bin, "--final", "--validate",
-        "--dump-priority", "500", "--meatpy", $MeatPy, "--ladder", $Ladder, "--out", $out)) "$out\replay.txt"
+        "--dump-priority", "50000", "--meatpy", $MeatPy, "--ladder", $Ladder, "--out", $out)) "$out\replay.txt"
   }
   if (Step "probes") {
     Native "pick probes" $py @("research\pick_probes.py", "--derived", $out, "--out", "$out\probe_symbols.txt", "--per-tier", $PerTier) "$out\pick_probes.txt" "last"
