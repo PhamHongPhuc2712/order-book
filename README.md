@@ -214,7 +214,8 @@ flags are listed at the top of `Replay.java`.
 **[phamhongphuc2712.github.io/order-book](https://phamhongphuc2712.github.io/order-book/)** — `demo/index.html` replays
 AAPL from 9:28 to 9:32 through the opening cross: ten levels a side with the number of resting
 orders at each price (the Level-3 detail a depth feed cannot show), the crossed pre-open book, the `Q` cross print, and the
-engine's latency percentiles in the caption. It is deployed by `.github/workflows/pages.yml` on every push that touches `demo/`, and runs entirely from the embedded
-slice — no network requests. To rebuild the slice for another day or symbol, re-run `demo/make_demo.py`.
+engine's latency percentiles in the caption. `.github/workflows/pages.yml` deploys it on every push that touches `demo/`, once Pages has been enabled for the
+repository (Settings → Pages → Source: GitHub Actions — a one-time click the workflow token cannot do for itself). The
+page runs entirely from the embedded slice, with no network requests. To rebuild the slice for another day or symbol, re-run `demo/make_demo.py`.
 
 Screencast storyboard: [`docs/screencast.md`](docs/screencast.md).

@@ -1,6 +1,7 @@
 # Publishes demo/ (index.html + the generated data.js slice) to GitHub Pages (Phase 4 Task 3 Step 4).
-# The first run turns Pages on itself (configure-pages enablement: true), so no manual setup is needed on a public repo.
-# It deploys on any push that touches demo/ or this file, and can be started by hand from the Actions tab.
+# One-time manual step: Settings -> Pages -> Source: GitHub Actions. The API call that would do it from here
+# (configure-pages enablement: true) is not permitted for the default workflow token, and fails the job.
+# After that, this deploys on any push touching demo/ or this file, and can also be started from the Actions tab.
 name: pages
 on:
   push:
@@ -23,7 +24,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
-        with: { enablement: true }        # turns Pages on for the repo the first time this runs
       - uses: actions/upload-pages-artifact@v3
         with: { path: demo }
       - id: deployment
