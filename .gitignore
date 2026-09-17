@@ -12,3 +12,7 @@ __pycache__/
 Thumbs.db
 .DS_Store
 CLAUDE.md
+
+# the vault copy in docs/ deliberately excludes the job-application context and the interview script
+docs/vault/01 Context/Target*
+docs/vault/04 Reference/Interview Talking Points.md

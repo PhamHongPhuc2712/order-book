@@ -1,33 +1,55 @@
 # lob-reconstruct — NASDAQ ITCH 5.0 Level-3 order book reconstruction
 
 A full-day NASDAQ TotalView-ITCH 5.0 parser and Level-3 limit order book reconstructor in Java 21. It replays a whole
-trading day (269 million messages, every symbol), rebuilds every book order by order, and checks itself three ways:
+trading day — 269 to 650 million messages depending on the day, every symbol — rebuilds every book order by order, and
+checks itself three ways:
 structural invariants on every message, price-time priority against the exchange's own executions, and an independent
 implementation (MeatPy) at every minute of the day. It was then optimised in measured steps from a credible naive baseline
 to an allocation-free hot path, and used to produce one number that needs order-level data to exist: the exact fill
 probability of an order joining the queue at the touch, conditioned on how much is ahead of it.
 
-Every figure below is copied from a generated file: `research/results/numbers_<day>.md` (research, written by
-`research/report.py`) or `docs/perf.md` (performance, written from `ops/bench.sh` output). Nothing is typed in by hand.
+Every figure below is copied from a generated file: `research/results/numbers_<day>.md` (per day, written by
+`research/report.py`), `research/results/crossday.md` (the three-day comparison, written by `research/crossday.py` from
+those files) or `docs/perf.md` (performance, written from `ops/bench.sh` output). Nothing is typed in by hand.
+
+No market data is in this repository. [`docs/setup.md`](docs/setup.md) is the new-machine guide: toolchain, build, where
+the files come from, and what one day costs in time and disk.
 
 ## Results
 
 Machine: AMD Ryzen 5 6600HS laptop (6C/12T), 13.7 GB usable RAM, NVMe SSD, Windows 11, Temurin JDK 21.0.12, single thread.
-Days: `12302019` (30 Dec 2019) in full; `01302020` and `S120825` are being run through the same pipeline (see
+Three days, 1.34 billion messages: `12302019` (30 Dec 2019), `01302020` (30 Jan 2020) and `S120825` (8 Dec 2025). Every
+correctness check and the queue-position result run on all three; the spread and OFI tables run on the first two (see
 [Cross-day](#cross-day)).
 
 ### Correctness
 
-| check | 12302019 |
-|---|---|
-| structural violations (bad length, unknown type, duplicate ref, unknown ref, exec > remaining, cancel > remaining) | **0** |
-| crossed book in market hours, trading state T | **0** unexplained; 642 within 1 s of a halt/IPO resumption (max lag 1.21 ms) |
-| duplicate match numbers / broken trades referencing an unseen match | 0 / 0 (4,324 two-sided matches, one printable and one non-printable leg) |
-| price-time priority: executions in market hours hitting the head of the best level | 10,565 violations / 5,683,178 checked = **0.19 %** |
-| … classified | 89.5 % bursts (one match event's fills reported in non-FIFO order), 10.5 % isolated (44.5 % odd lots; self-match prevention is the working hypothesis), **0 off-best, 0 gate bugs** |
-| MeatPy top-of-book diff, AAPL, every minute 9:30–16:00 | **391 / 391 identical** (bid, ask, both sizes); per-type message counts identical on all 18 types |
-| live orders at end of day (`C`) | 0 |
-| queue anomalies (an order behind a joiner filled first) | **0** of 917,092 episodes |
+| check | 12302019 | 01302020 | S120825 |
+|---|---|---|---|
+| framing mismatches over every `[len:2][msg]` frame | **0** | **0** | **0** |
+| structural violations (bad length, unknown type, duplicate ref, unknown ref, exec > remaining, cancel > remaining) | **0** | **0** | **0** |
+| crossed book in market hours, trading state T | **0** | **0** | **0** |
+| … within 1 s of a halt or IPO resumption, which is legitimate (D26) | 642 | 458 | 16,669 |
+| duplicate match numbers / broken trades referencing an unseen match | 0 / 0 | 0 / 0 | 0 / 0 |
+| two-sided matches, one printable and one non-printable leg (D28) | 4,324 | 5,170 | 32 |
+| live orders left at end of day (`C`) | **0** | **0** | **0** |
+| price-time priority: executions in market hours hitting the head of the best level | 10,565 / 5,683,178 = **0.186 %** | 10,744 / 8,301,831 = **0.129 %** | 33,674 / 14,391,184 = **0.234 %** |
+| … classified, every violation and not a sample | 10,565 / 10,565 | 10,744 / 10,744 | 33,674 / 33,674 |
+| … bursts (one match event's fills reported out of FIFO order) | 89.5 % | 87.6 % | 96.6 % |
+| … isolated (one fill skipping the head; 44–60 % odd lots) | 10.5 % | 12.4 % | 3.3 % |
+| … off the best displayed price | **0** | **0** | 42 = 0.12 % |
+| … in the wrong trading state (would be a gate bug) | **0** | **0** | **0** |
+| MeatPy top-of-book diff, AAPL, every minute 9:30–16:00 | **391 / 391 identical** | — | — |
+| queue anomalies (an order behind a joiner filled first) | **0** of 917,092 | **0** of 1,100,166 | **0** of 1,238,010 |
+
+Every violation on the first two days, and 99.88 % of them on the third, is a reordering *inside* the best displayed
+level — the book itself is right, the feed just reports one matching event's fills in an order that is not price-time.
+The 42 exceptions on `S120825` are the one case where an execution hit an order sitting behind a better displayed price.
+They are not spread across the day: they fall into six (symbol, millisecond) groups in five small-cap names (SMX 22,
+IBIO 15, VIRC 3, CETX 1, TWG 1), 33 of the 42 have another execution at the very same nanosecond, and the orders they hit
+sit a median of $36 behind the touch — the signature of one sweep per group whose fills are reported out of price order.
+They are reported, not explained away: the day's structural counters are still zero and its book still drains to zero
+live orders at the closing system event.
 
 The reference implementation took 3,379 s for one symbol; this engine took 178 s for every symbol including the export.
 
@@ -49,7 +71,7 @@ slower than G1 at the same heap on every row, and its optimised-row tail is wors
 pick the collector. Full tables, JFR allocation sites, and the abandoned non-generational ZGC pass are in
 [`docs/perf.md`](docs/perf.md).
 
-### Research (12302019; tiers by that day's volume rank: top100, 101–1000, rest)
+### Research (`12302019` in full; tiers by that day's volume rank: top100, 101–1000, rest)
 
 **Queue position.** 917,092 exact joiner episodes on 59 symbols: a hypothetical order joins the back of the touch at the
 first top-of-book change after each 1-second grid point, and every execution or cancel of the orders ahead of it is tracked.
@@ -84,9 +106,45 @@ Charts: `research/results/queue_12302019.png`, `queue_cond_12302019.png`, `sprea
 
 ### Cross-day
 
-`01302020` (30 Jan 2020) and `S120825` (8 Dec 2025) run through `ops/make.ps1` unchanged; their `numbers_<day>.md` land in
-`research/results/` and this section is updated from them. Structural counters are expected to be zero on all days; the
-queue curves are expected to keep their shape with different levels.
+Generated by `research/crossday.py` into [`research/results/crossday.md`](research/results/crossday.md), which reads each
+day's `validation.json`, replay log, classification and result CSVs back — it recomputes nothing.
+
+| scale | 12302019 | 01302020 | S120825 |
+|---|---|---|---|
+| decompressed bytes | 8,251,407,909 | 12,952,050,754 | 20,718,163,388 |
+| messages | 268,744,780 | 423,285,709 | 650,338,709 |
+| symbols traded | 8,906 | 8,915 | 12,102 |
+| peak simultaneously live orders | 1,924,078 | 1,925,638 | **5,271,230** |
+| replay wall clock, writing the derived set | 302 s | 551 s | 996 s |
+| msgs/s, single thread, with that output | 890,659 | 768,144 | 653,025 |
+
+The 2025 day is not just bigger: `U` replaces are 23.6 % of its messages against 8.1 % on `12302019`, and it carries
+2.7× the peak live orders, which is why allocation per message rises from 5.9 to 9.4 B (pool growth) while the hot path
+is unchanged.
+
+| top100 at midday | 12302019 | 01302020 | S120825 |
+|---|---|---|---|
+| joiner episodes (all tiers, both sides) | 917,092 | 1,100,166 | 1,238,010 |
+| P(fill ≤ 5 s), lower – upper | 3.2 % – 24.0 % | 4.5 % – 24.5 % | 5.2 % – 30.0 % |
+| P(fill ≤ 60 s), lower – upper | 12.8 % – 41.1 % | 17.4 % – 44.5 % | 15.2 % – 44.5 % |
+| P(fill ≤ 5 s), smallest decile of shares ahead (upper) | 50.6 % | 53.0 % | 49.8 % |
+| P(fill ≤ 5 s), largest decile of shares ahead (upper) | 1.2 % | 8.2 % | 3.2 % |
+| cancellation share of queue movement | 89.1 % | 91.5 % | 83.4 % |
+| median shares ahead at the touch | 1,970 | 1,400 | 701 |
+| effective spread (bps) | 23.4 | 9.7 | — |
+| realised spread at 30 s (bps) | −15.6 | −5.1 | — |
+| OFI out-of-sample R², median symbol | 0.483 | 0.578 | — |
+
+**The finding replicates.** On all three days the fill probability of a joiner at the touch falls by roughly an order of
+magnitude from the smallest to the largest decile of shares ahead of it, the anomaly rate is exactly zero across
+3,255,268 episodes, and most of the queue ahead leaves by cancelling rather than trading. The levels move with the day —
+30 Dec 2019 was a thin holiday-week session, and its effective spread is 2.4× January's — which is the point of running
+more than one.
+
+Day 3's spread and OFI cells are empty, not pending: those two metrics need the day's full quote table (23 GB of derived
+NDJSON, 267 M rows), and that data was deleted to reclaim disk before it had been converted. Everything else on the day —
+correctness, the full priority classification, 1.24 M queue episodes — is computed and above. Re-running it is
+`ops/make.ps1 -Day S120825 -Gz S120825-v50.txt.gz -Steps gunzip,replay,convert,report` after re-downloading the file.
 
 ## Design (ten lines)
 
@@ -131,7 +189,8 @@ every number quoted.
 
 ## Run it
 
-Requires JDK 21, Maven, Python 3.12 (`research/requirements.txt`), ~30 GB of disk per day (gz, decompressed, derived, Parquet).
+Full instructions, including every measured runtime and the disk budget, are in [`docs/setup.md`](docs/setup.md).
+Short version: JDK 21, Maven, Python 3.12 (`research/requirements.txt`), and ~35 GB of free disk per day.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File ops/download.ps1 -Name 12302019.NASDAQ_ITCH50.gz   # resume + md5 when published

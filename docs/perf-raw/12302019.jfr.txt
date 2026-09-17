@@ -1,0 +1,133 @@
+=== JFR naive G1 ===
+config=stream/hash/tree messages=15578139 wall=8,7s msgs/s=1.799.347 alloc=152,1 B/msg live=0 poolCreated=0
+apply ns: p50=300 p90=700 p99=1500 p99.9=12703 max=36339711
+gcCount=5 sumOfPauses=74 longestPause=7,76 (units as printed by jfr; see raw)
+ jdk.ObjectAllocationSample               2219         29116
+ jdk.ExecutionSample                       411          3909
+ jdk.GarbageCollection                       5            95
+--- top allocation sample classes:
+    699 java.util.AbstractMap$SimpleImmutableEntry
+    527 java.lang.Long
+    414 sg.phuc.lob.book.Order
+    245 java.util.HashMap$Node
+    197 java.lang.Integer
+     73 java.util.TreeMap$Entry
+     52 sg.phuc.lob.book.Level
+      4 java.util.ArrayList$Itr
+--- top execution sample frames (top of stack):
+     52 java.util.TreeMap.getFirstEntry() 
+     49 java.util.HashMap.putVal(int, Object, Object, boolean, boolean) 
+     45 sg.phuc.lob.engine.Engine.delete(byte[], long) 
+     43 java.util.TreeMap.getEntry(Object) 
+     34 sg.phuc.lob.engine.Engine.afterChange(Book, int, long) 
+     32 sg.phuc.lob.engine.Engine.newOrder(long, int, byte, int, int, long) 
+     24 sg.phuc.lob.book.HashOrderMap.put(long, Order) 
+     18 sg.phuc.lob.engine.Engine.insert(int, long, byte, int, int, long) 
+     16 org.HdrHistogram.AbstractHistogram.updateMinAndMax(long) 
+     14 java.io.BufferedInputStream.read(byte[], int, int) 
+     11 java.util.TreeMap.put(Object, Object, boolean) 
+     11 java.util.TreeMap.deleteEntry(TreeMap$Entry) 
+=== JFR final G1 ===
+config=mmap/long/array/pool/dedupe messages=15578139 wall=7,1s msgs/s=2.191.309 alloc=4,1 B/msg live=0 poolCreated=217125
+apply ns: p50=200 p90=700 p99=1500 p99.9=2901 max=16875519
+gcCount=0 sumOfPauses= longestPause= (units as printed by jfr; see raw)
+ jdk.ExecutionSample                       239          2151
+ jdk.ObjectAllocationSample                 45           588
+ jdk.GarbageCollection                       0             0
+--- top allocation sample classes:
+     27 sg.phuc.lob.book.Level
+     11 sg.phuc.lob.book.Order
+      2 byte[]
+      1 sg.phuc.lob.book.Level[]
+      1 long[]
+      1 java.lang.invoke.MemberName
+      1 java.lang.Object[]
+      1 int[]
+--- top execution sample frames (top of stack):
+     74 sg.phuc.lob.engine.Engine.insert(int, long, byte, int, int, long) 
+     37 sg.phuc.lob.engine.Engine.afterChange(Book, int, long) 
+     36 sg.phuc.lob.engine.Engine.apply(byte[], int) 
+     27 sg.phuc.lob.book.ArrayBook.find(byte, int) 
+     16 sg.phuc.lob.book.ArrayBook.level(byte, int, boolean) 
+     14 sg.phuc.lob.engine.Engine.replace(byte[], long) 
+     12 org.HdrHistogram.AbstractHistogram.updateMinAndMax(long) 
+      5 sg.phuc.lob.replay.Replay.run(Path, Replay$Config, Set, Listener, boolean) 
+      5 sg.phuc.lob.book.LongObjectMap.put(long, Object) 
+      5 sg.phuc.lob.book.LongObjectMap.get(long) 
+      3 sg.phuc.lob.book.LongObjectMap.remove(long) 
+      2 sg.phuc.lob.engine.Engine.exec(byte[], long, boolean) 
+=== JFR naive Z ===
+config=stream/hash/tree messages=15578139 wall=10,6s msgs/s=1.468.240 alloc=183,8 B/msg live=0 poolCreated=0
+apply ns: p50=400 p90=900 p99=2801 p99.9=9207 max=23429119
+gcCount=3 sumOfPauses=0 longestPause= (units as printed by jfr; see raw)
+ jdk.ObjectAllocationSample               3220         43274
+ jdk.ExecutionSample                       534          5268
+ jdk.GarbageCollection                       3            53
+--- top allocation sample classes:
+   1118 java.util.AbstractMap$SimpleImmutableEntry
+    718 java.lang.Long
+    604 sg.phuc.lob.book.Order
+    367 java.util.HashMap$Node
+    218 java.lang.Integer
+    119 java.util.TreeMap$Entry
+     67 sg.phuc.lob.book.Level
+      3 byte[]
+--- top execution sample frames (top of stack):
+     72 java.util.HashMap.putVal(int, Object, Object, boolean, boolean) 
+     65 java.util.TreeMap.getFirstEntry() 
+     62 sg.phuc.lob.engine.Engine.afterChange(Book, int, long) 
+     52 sg.phuc.lob.engine.Engine.delete(byte[], long) 
+     32 java.util.TreeMap.put(Object, Object, boolean) 
+     30 java.util.TreeMap.getEntryUsingComparator(Object) 
+     24 java.util.HashMap.put(Object, Object) 
+     21 java.util.TreeMap.exportEntry(TreeMap$Entry) 
+     21 java.io.BufferedInputStream.read(byte[], int, int) 
+     19 java.util.TreeMap.remove(Object) 
+     19 java.io.BufferedInputStream.read1(byte[], int, int) 
+     17 sg.phuc.lob.engine.Engine.insert(int, long, byte, int, int, long) 
+=== JFR final Z ===
+config=mmap/long/array/pool/dedupe messages=15578139 wall=8,3s msgs/s=1.877.655 alloc=5,2 B/msg live=0 poolCreated=217125
+apply ns: p50=300 p90=800 p99=2501 p99.9=5803 max=20889599
+gcCount=0 sumOfPauses= longestPause= (units as printed by jfr; see raw)
+ jdk.ObjectAllocationSample                301          3921
+ jdk.ExecutionSample                       242          2179
+ jdk.GarbageCollection                       0             0
+--- top allocation sample classes:
+    214 sg.phuc.lob.book.Level
+     65 sg.phuc.lob.book.Order
+      6 sg.phuc.lob.book.Level[]
+      4 byte[]
+      2 jdk.internal.org.objectweb.asm.SymbolTable$Entry[]
+      2 java.lang.Class
+      1 long[]
+      1 jdk.internal.org.objectweb.asm.SymbolTable$Entry
+--- top execution sample frames (top of stack):
+     65 sg.phuc.lob.engine.Engine.insert(int, long, byte, int, int, long) 
+     35 sg.phuc.lob.book.ArrayBook.find(byte, int) 
+     32 sg.phuc.lob.engine.Engine.apply(byte[], int) 
+     31 sg.phuc.lob.engine.Engine.delete(byte[], long) 
+     20 sg.phuc.lob.engine.Engine.replace(byte[], long) 
+     14 sg.phuc.lob.book.ArrayBook.level(byte, int, boolean) 
+      9 sg.phuc.lob.replay.Replay.run(Path, Replay$Config, Set, Listener, boolean) 
+      8 sg.phuc.lob.engine.Engine.afterChange(Book, int, long) 
+      8 org.HdrHistogram.AbstractHistogram.updateMinAndMax(long) 
+      6 sg.phuc.lob.book.LongObjectMap.remove(long) 
+      6 sg.phuc.lob.book.LongObjectMap.put(long, Object) 
+      5 sg.phuc.lob.engine.Engine.exec(byte[], long, boolean) 
+=== listener cost (final config, G1, subset, no --hist) ===
+listener=null config=mmap/long/array/pool/dedupe messages=15578139 wall=5,5s msgs/s=2.851.062 alloc=4,1 B/msg live=0 poolCreated=217125
+listener=derived+dedupe config=mmap/long/array/pool/dedupe messages=15578139 wall=11,6s msgs/s=1.337.655 alloc=53,8 B/msg live=0 poolCreated=217125
+listener=derived+nodedupe config=mmap/long/array/pool messages=15578139 wall=11,6s msgs/s=1.342.249 alloc=53,6 B/msg live=0 poolCreated=217125
+--- derived outputs identical with and without dedupe:
+449908804f449846ed4f62d8562bfe397055234f8aba48e969714b795a801796 *derived.dedupe/bbo.ndjson
+187bbdbf3e92055ae69fdb787b7aa2209145d9ed588124e5b588a8213154709f *derived.dedupe/daily.ndjson
+dbfa9b59b6933b18b9432d52f29904427b40233d91561292963077482fc29812 *derived.dedupe/executions.ndjson
+2ad3ba681500d43860ea4acc7dcfb12df5e5606de619aaa728f93ab7455398e9 *derived.dedupe/trades.ndjson
+449908804f449846ed4f62d8562bfe397055234f8aba48e969714b795a801796 *derived.nodedupe/bbo.ndjson
+187bbdbf3e92055ae69fdb787b7aa2209145d9ed588124e5b588a8213154709f *derived.nodedupe/daily.ndjson
+dbfa9b59b6933b18b9432d52f29904427b40233d91561292963077482fc29812 *derived.nodedupe/executions.ndjson
+2ad3ba681500d43860ea4acc7dcfb12df5e5606de619aaa728f93ab7455398e9 *derived.nodedupe/trades.ndjson
+=== clean re-run of the naive subset histogram (G1) ===
+config=stream/hash/tree messages=15578139 wall=9,9s msgs/s=1.578.606 alloc=152,1 B/msg live=0 poolCreated=0
+apply ns: p50=400 p90=800 p99=1900 p99.9=14807 max=26951679
+DONE Mon Sep 14 00:33:22 MPST 2026

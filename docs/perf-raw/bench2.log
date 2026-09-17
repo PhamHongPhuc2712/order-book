@@ -1,0 +1,23 @@
+gc=Z@4g row=naive file=12302019.sub20.bin config=stream/hash/tree messages=15578139 wall=12,3s msgs/s=1.266.477 alloc=183,8 B/msg live=0 poolCreated=0 apply ns: p50=400 p90=1100 p99=3801 p99.9=10903 max=28540927 
+gc=Z@4g row=naive file=12302019.bin 
+RESTART with Generational ZGC Sun Sep 13 23:24:02 MPST 2026
+gc=Z@4g row=naive file=12302019.sub20.bin config=stream/hash/tree messages=15578139 wall=13,0s msgs/s=1.197.792 alloc=183,7 B/msg live=0 poolCreated=0 apply ns: p50=400 p90=1100 p99=3401 p99.9=19215 max=53313535 
+gc=Z@4g row=naive file=12302019.bin config=stream/hash/tree messages=268744780 wall=329,3s msgs/s=815.993 alloc=189,2 B/msg live=0 poolCreated=0 apply ns: p50=0 p90=0 p99=0 p99.9=0 max=0 
+gc=Z@4g row=+mmap file=12302019.sub20.bin config=mmap/hash/tree messages=15578139 wall=12,1s msgs/s=1.288.443 alloc=183,7 B/msg live=0 poolCreated=0 apply ns: p50=400 p90=1100 p99=3601 p99.9=9103 max=17956863 
+gc=Z@4g row=+mmap file=12302019.bin config=mmap/hash/tree messages=268744780 wall=321,2s msgs/s=836.737 alloc=189,2 B/msg live=0 poolCreated=0 apply ns: p50=0 p90=0 p99=0 p99.9=0 max=0 
+gc=Z@4g row=+long file=12302019.sub20.bin config=mmap/long/tree messages=15578139 wall=10,6s msgs/s=1.465.207 alloc=124,0 B/msg live=0 poolCreated=0 apply ns: p50=400 p90=900 p99=2601 p99.9=7603 max=21315583 
+gc=Z@4g row=+long file=12302019.bin config=mmap/long/tree messages=268744780 wall=341,1s msgs/s=787.791 alloc=130,4 B/msg live=0 poolCreated=0 apply ns: p50=0 p90=0 p99=0 p99.9=0 max=0 
+gc=Z@4g row=+array file=12302019.sub20.bin config=mmap/long/array messages=15578139 wall=9,7s msgs/s=1.609.777 alloc=41,9 B/msg live=0 poolCreated=0 apply ns: p50=300 p90=900 p99=2801 p99.9=7003 max=18104319 
+gc=Z@4g row=+array file=12302019.bin config=mmap/long/array messages=268744780 wall=194,5s msgs/s=1.382.025 alloc=44,5 B/msg live=0 poolCreated=0 apply ns: p50=0 p90=0 p99=0 p99.9=0 max=0 
+gc=Z@4g row=+pool file=12302019.sub20.bin config=mmap/long/array/pool messages=15578139 wall=10,3s msgs/s=1.518.071 alloc=5,2 B/msg live=0 poolCreated=217125 apply ns: p50=300 p90=1000 p99=3201 p99.9=7303 max=20692991 
+gc=Z@4g row=+pool file=12302019.bin config=mmap/long/array/pool messages=268744780 wall=186,4s msgs/s=1.441.585 alloc=7,4 B/msg live=0 poolCreated=1924078 apply ns: p50=0 p90=0 p99=0 p99.9=0 max=0 
+gc=Z@4g row=+dedupe file=12302019.sub20.bin config=mmap/long/array/pool/dedupe messages=15578139 wall=9,6s msgs/s=1.630.276 alloc=5,2 B/msg live=0 poolCreated=217125 apply ns: p50=300 p90=900 p99=2801 p99.9=6703 max=20004863 
+gc=Z@4g row=+dedupe file=12302019.bin config=mmap/long/array/pool/dedupe messages=268744780 wall=193,6s msgs/s=1.388.363 alloc=7,4 B/msg live=0 poolCreated=1924078 apply ns: p50=0 p90=0 p99=0 p99.9=0 max=0 
+DONE Sun Sep 13 23:51:35 MPST 2026
+REST START Mon Sep 14 00:25:00 MPST 2026
+gc=G1@4g row=naive file=12302019.sub20.bin config=stream/hash/tree messages=15578139 wall=9,1s msgs/s=1.712.956 alloc=152,1 B/msg live=0 poolCreated=0 apply ns: p50=300 p90=700 p99=1600 p99.9=13407 max=26263551 
+gc=G1@4g row=naive file=12302019.bin config=stream/hash/tree messages=268744780 wall=219,2s msgs/s=1.225.807 alloc=156,8 B/msg live=0 poolCreated=0 apply ns: p50=0 p90=0 p99=0 p99.9=0 max=0 
+gc=G1@4g row=+dedupe file=12302019.sub20.bin config=mmap/long/array/pool/dedupe messages=15578139 wall=7,2s msgs/s=2.162.998 alloc=4,1 B/msg live=0 poolCreated=217125 apply ns: p50=200 p90=700 p99=1400 p99.9=2601 max=16891903 
+gc=G1@4g row=+dedupe file=12302019.bin config=mmap/long/array/pool/dedupe messages=268744780 wall=166,4s msgs/s=1.614.574 alloc=5,9 B/msg live=0 poolCreated=1924078 apply ns: p50=0 p90=0 p99=0 p99.9=0 max=0 
+DONE Mon Sep 14 00:31:46 MPST 2026
+ALL DONE Mon Sep 14 00:33:22 MPST 2026
