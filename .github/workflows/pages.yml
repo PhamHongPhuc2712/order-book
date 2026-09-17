@@ -22,6 +22,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
+        with: { enablement: true }        # turns Pages on for the repo the first time this runs
       - uses: actions/upload-pages-artifact@v3
         with: { path: demo }
       - id: deployment
