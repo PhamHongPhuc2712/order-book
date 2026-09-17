@@ -154,6 +154,8 @@ def main(argv=None):
     a = ap.parse_args(argv)
     derived, parquet, date = pathlib.Path(a.derived), pathlib.Path(a.parquet), a.date
     results = pathlib.Path(a.results)
+    if not (derived / "validation.json").exists():              # data/ cleared: the run's small files were kept
+        derived = results / "runs" / date
     results.mkdir(parents=True, exist_ok=True)
     skip = set(filter(None, a.skip.split(",")))
     reuse = set(filter(None, a.reuse.split(",")))
@@ -167,6 +169,8 @@ def main(argv=None):
 
     out += ["## 1. Validation counters", "", validation_section(derived)]
     pri = HERE / "out" / f"priority_{date}.md"
+    if not pri.exists():                                        # data/ cleared: use the copy kept with the results
+        pri = results / "runs" / date / f"priority_{date}.md"
     out += ["## 2. Priority-violation classification", "", (pri.read_text(encoding="utf-8").split("\n", 1)[1].strip() if pri.exists() else "_not classified_"), ""]
     out += ["## 3. MeatPy cross-check (AAPL top-of-book at 1-minute marks)", "", meatpy_section(derived, date)]
     out += ["## 4. Performance", "", "See `docs/perf.md` (naive -> optimised tables, G1 and Generational ZGC, JFR). Not regenerated here.", ""]

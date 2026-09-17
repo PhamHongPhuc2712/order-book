@@ -74,6 +74,16 @@ def priority_buckets(path: pathlib.Path) -> dict:
     return out
 
 
+def priority_coverage(path: pathlib.Path) -> str:
+    """The classifier's own coverage line, e.g. '33,674 of 33,674 (all of them)'."""
+    if not path.exists():
+        return ""
+    m = re.search(r"Violations (?:classified|dumped): \*\*([\d,]+)\*\*(?: of \*\*([\d,]+)\*\*)?", read_any(path))
+    if not m:
+        return ""
+    return f"{m[1]} of {m[2]}" if m[2] else m[1]
+
+
 def meatpy_line(numbers_md: pathlib.Path) -> str:
     if not numbers_md.exists():
         return ""
@@ -93,7 +103,11 @@ def day_facts(day: str, derived: pathlib.Path, results: pathlib.Path) -> dict:
     f.update(replay_stats(d / "replay.txt"))
     v = d / "validation.json"
     f["validation"] = json.loads(v.read_text(encoding="utf-8")) if v.exists() else {}
-    f["priority"] = priority_buckets(HERE / "out" / f"priority_{day}.md")
+    pri = HERE / "out" / f"priority_{day}.md"
+    if not pri.exists():                                        # data/ cleared: use the copy kept with the results
+        pri = results / "runs" / day / f"priority_{day}.md"
+    f["priority"] = priority_buckets(pri)
+    f["priority_coverage"] = priority_coverage(pri)
     f["meatpy"] = meatpy_line(results / f"numbers_{day}.md")
     f["queue"] = csv(results / f"queue_tier_session_{day}.csv")
     f["cond"] = csv(results / f"queue_cond_{day}.csv")
@@ -166,8 +180,10 @@ def correctness_rows(facts: list) -> list:
         p = f["priority"]
         if not p:
             return DASH
-        return (f"burst {p['burst'][1]:.1f} %, isolated {p['isolated'][1]:.1f} %, "
-                f"off-best {p['off_best'][0]}, gate {p['gate_bug'][0]}")
+        cov = f.get("priority_coverage")
+        return ((f"{cov}: " if cov else "")
+                + f"burst {p['burst'][1]:.1f} %, isolated {p['isolated'][1]:.1f} %, "
+                + f"off-best {p['off_best'][0]}, gate {p['gate_bug'][0]}")
 
     def anomaly(f):
         q = f["queue"]
@@ -186,7 +202,7 @@ def correctness_rows(facts: list) -> list:
         ("two-sided matches (D28)", [v(f, "twoSidedMatches") for f in facts]),
         ("live orders at system event `C`", [v(f, "liveAtC") for f in facts]),
         ("price-time priority violations", [rate(f) for f in facts]),
-        ("… classified (500 sampled)", [buckets(f) for f in facts]),
+        ("… classified", [buckets(f) for f in facts]),
         ("MeatPy AAPL top-of-book, 1-minute marks", [f["meatpy"] or DASH for f in facts]),
         ("queue anomalies (order behind a joiner filled first)", [anomaly(f) for f in facts]),
     ]
