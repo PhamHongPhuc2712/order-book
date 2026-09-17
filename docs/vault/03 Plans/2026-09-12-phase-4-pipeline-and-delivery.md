@@ -76,13 +76,13 @@ Push-Location research; .\.venv\Scripts\python.exe convert.py --derived "..\data
 - [x] **Step 1: `LadderWriter(symbol, fromNs, toNs, everyNs=100ms, depth=10)`** — *done 2026-09-16: `Book.levelAt` on the interface (`TreeBook` walks, `ArrayBook` indexes); also writes the symbol's `Q` cross trades and system events as marker lines; `Replay --ladder SYM [--ladder-from --ladder-to]`; `LadderWriterTest`* — — a `Listener` that on each `onBbo` for the symbol, if `ts >= nextTick`, walks the engine's book (`book(loc)` → for each side, iterate `level(...)` via the `Book` interface — add `Level levelAt(byte side, int index)` to `Book`, trivial in `ArrayBook`) and writes `{"t":ts,"b":[[p,sh,count]…10],"a":[…]}`. Window: **9:28:00–9:32:00** = `[33_880e9, 34_320e9)` — through the opening cross.
 - [x] **Step 2: `make_demo.py`** — *done 2026-09-16: `window.META`, `window.PERF` (final-row G1 subset percentiles + median full-day msgs/s parsed from `data/perf/<day>.txt`), `window.SLICE`* — — reads the ladder NDJSON, converts price to dollars, embeds as `window.SLICE` in `data.js`, plus the latency percentiles from `replay.txt` as `window.PERF`.
 - [x] **Step 3: `index.html`** — *done 2026-09-16: play/pause, 1/10/100×, scrubber, 10-level ladder with order counts and depth bars, crossed-book indicator pre-open, cross marker, event log, latency caption; no external requests* — — same skeleton as the Binance-era demo: play/pause, speed 1/10/100×, a 10-level ladder with order **count** shown next to shares (that's the Level-3 detail the Binance version couldn't show), the timestamp as `HH:MM:SS.mmm`, and a marker when the `Q` cross message arrives (from a `system` line in the slice). Latency percentiles in a caption. No external requests.
-- [ ] **Step 4: Publish** — GitHub Pages from `/demo`; link in README and [[00 Index]]. Commit.
+- [x] **Step 4: Publish** — *done 2026-09-18: `.github/workflows/pages.yml` deploys `/demo` (upload-pages-artifact + deploy-pages) on any push touching `demo/`; repo pushed to <https://github.com/PhamHongPhuc2712/order-book>, links in README and above. **One manual step left for me: Settings -> Pages -> Source: GitHub Actions** — the first run failed at `configure-pages` because enabling Pages from the workflow token is not permitted; after the toggle the workflow deploys to <https://phamhongphuc2712.github.io/order-book/>*
 
 ---
 
 ### Task 4: README and screencast
 
-- [ ] **Step 1: README structure**
+- [x] **Step 1: README structure** — *done 2026-09-18: three-day correctness table, the naive->optimised performance table, the day-1 research detail, a generated `Cross-day` section (scale + research, from `crossday.md`), design, honest limitations, what I would change at a bank, and `docs/setup.md` for running it. Every cell traces to `numbers_<day>.md`, `crossday.md` or `docs/perf.md`*
 ```markdown
 # lob-reconstruct — NASDAQ ITCH 5.0 Level-3 order book reconstruction
 
@@ -116,7 +116,7 @@ charts: queue_*.png · queue_cond_*.png · spreads_*.png
 4. 1:40 — `docs/perf.md` table; point at B/msg going to zero and the p99.9 collapse
 5. 2:20 — the conditional queue chart; one sentence with the number
 6. 2:50 — what changes to run it at a bank
-- [ ] **Step 3: Tag** — `git add README.md demo && git commit -m "docs: README with results; demo" && git tag v0.1.0`. **Gate opens.**
+- [x] **Step 3: Tag** — *done 2026-09-18: `v0.1.0` annotated and pushed, along with `phase-1-baseline`, `phase-2-optimised` and `phase-3-results`. CI green on the pushed tree. **Gate opens.***
 
 ## Self-review
 - **Spec coverage:** §11 delivery; D20 three days (Tasks 1–2); §5.5 demo (Task 3); the "what I'd change" section answers the non-goals in §2.
