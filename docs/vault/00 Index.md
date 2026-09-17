@@ -54,6 +54,13 @@ tags: [bofa, itch, lob, internship-2027]
 - [ ] Stretch A (matching + risk) — only after the gate
 - [ ] Stretch B (FIX) — only after Stretch A
 
+## Links
+
+- Repo: <https://github.com/PhamHongPhuc2712/order-book>
+- Demo (GitHub Pages, deployed from `/demo`): <https://phamhongphuc2712.github.io/order-book/>
+- Results: `research/results/numbers_<day>.md` per day, `research/results/crossday.md` across the three
+- Setup on a new machine: `docs/setup.md` in the repo; `docs/vault/` is a copy of this vault, minus the JD and the interview script
+
 ## Ground rules
 
 - Every task ends with a passing test and a commit.
