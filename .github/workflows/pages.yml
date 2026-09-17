@@ -1,5 +1,6 @@
 # Publishes demo/ (index.html + the generated data.js slice) to GitHub Pages (Phase 4 Task 3 Step 4).
-# Needs Pages enabled for the repository with source "GitHub Actions" (Settings -> Pages).
+# The first run turns Pages on itself (configure-pages enablement: true), so no manual setup is needed on a public repo.
+# It deploys on any push that touches demo/ or this file, and can be started by hand from the Actions tab.
 name: pages
 on:
   push:
