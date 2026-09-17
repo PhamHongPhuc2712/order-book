@@ -1,0 +1,4 @@
+# day        gz file in data/itch/                 (Phase 4 Task 1: the three days the results are built on)
+12302019     12302019.NASDAQ_ITCH50.gz
+01302020     01302020.NASDAQ_ITCH50.gz
+S120825      S120825-v50.txt.gz

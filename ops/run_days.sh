@@ -1,16 +1,38 @@
 #!/usr/bin/env bash
-# Phase 4 Task 2 Step 2: run the remaining two days as their downloads land. Waits for data/itch/download.log to report
-# each file, and for any determinism check to finish, before starting a day (one heavy job at a time on 13.7 GB).
+# Phase 4 Task 2 Step 2: run ops/make.ps1 for every day in ops/days.txt, one at a time (13.7 GB of RAM allows exactly
+# one heavy job), then write the cross-day table. A day whose pipeline fails stops the chain with its log named.
+# Usage: bash ops/run_days.sh [day ...]        # default: every day in ops/days.txt
+# Downloads are a separate step (ops/download.ps1); this script assumes the .gz files are already in data/itch/.
+set -u
 cd "$(dirname "$0")/.." || exit 1
-wait_for() { until grep -qE "$1" "$2" 2>/dev/null; do sleep 60; done; }
-wait_for "DETERMINISM-CHECK-DONE" data/derived/determinism.log
-for pair in "01302020 01302020.NASDAQ_ITCH50.gz" "S120825 S120825-v50.txt.gz"; do
-  set -- $pair; day=$1; gz=$2
-  echo "== waiting for $gz $(date)"
-  wait_for "downloaded $gz|md5 ok $gz" data/itch/download.log
+
+days=()
+gzs=()
+while read -r day gz _; do
+  case "$day" in ''|'#'*) continue;; esac
+  if [ $# -gt 0 ]; then
+    for want in "$@"; do [ "$want" = "$day" ] && { days+=("$day"); gzs+=("$gz"); }; done
+  else
+    days+=("$day"); gzs+=("$gz")
+  fi
+done < ops/days.txt
+
+[ ${#days[@]} -eq 0 ] && { echo "no days selected (see ops/days.txt)"; exit 1; }
+
+for i in "${!days[@]}"; do
+  day="${days[$i]}"; gz="${gzs[$i]}"; log="data/derived/make_$day.log"
+  mkdir -p "data/derived/$day"
   echo "== make $day start $(date)"
-  powershell -NoProfile -ExecutionPolicy Bypass -File ops/make.ps1 -Day "$day" -Gz "$gz" > "data/derived/make_$day.log" 2>&1
-  echo "== make $day exit $? $(date)"
-  grep -E "complete:|Exception|failed|error" "data/derived/make_$day.log" | head -3
+  powershell -NoProfile -ExecutionPolicy Bypass -File ops/make.ps1 -Day "$day" -Gz "$gz" > "$log" 2>&1
+  rc=$?
+  echo "== make $day exit $rc $(date)"
+  if [ $rc -ne 0 ]; then
+    tail -20 "$log"
+    echo "== stopping: $day failed, see $log"
+    exit $rc
+  fi
 done
+
+echo "== crossday $(date)"
+(cd research && .venv/Scripts/python.exe crossday.py --days "${days[@]}" --derived ../data/derived) || exit $?
 echo "ALL-DAYS-DONE $(date)"
