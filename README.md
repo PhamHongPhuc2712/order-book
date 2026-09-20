@@ -19,8 +19,8 @@ the files come from, and what one day costs in time and disk.
 
 Machine: AMD Ryzen 5 6600HS laptop (6C/12T), 13.7 GB usable RAM, NVMe SSD, Windows 11, Temurin JDK 21.0.12, single thread.
 Three days, 1.34 billion messages: `12302019` (30 Dec 2019), `01302020` (30 Jan 2020) and `S120825` (8 Dec 2025). Every
-correctness check and the queue-position result run on all three; the spread and OFI tables run on the first two (see
-[Cross-day](#cross-day)).
+correctness check, the queue-position result, and the spread and OFI tables run on all three (see
+[Cross-day](#cross-day) for the day-3 provenance).
 
 ### Correctness
 
@@ -131,9 +131,9 @@ is unchanged.
 | P(fill ≤ 5 s), largest decile of shares ahead (upper) | 1.2 % | 8.2 % | 3.2 % |
 | cancellation share of queue movement | 89.1 % | 91.5 % | 83.4 % |
 | median shares ahead at the touch | 1,970 | 1,400 | 701 |
-| effective spread (bps) | 23.4 | 9.7 | — |
-| realised spread at 30 s (bps) | −15.6 | −5.1 | — |
-| OFI out-of-sample R², median symbol | 0.483 | 0.578 | — |
+| effective spread (bps) | 23.4 | 9.7 | 15.1 |
+| realised spread at 30 s (bps) | −15.6 | −5.1 | −9.5 |
+| OFI out-of-sample R², median symbol | 0.483 | 0.578 | 0.583 |
 
 **The finding replicates.** On all three days the fill probability of a joiner at the touch falls by roughly an order of
 magnitude from the smallest to the largest decile of shares ahead of it, the anomaly rate is exactly zero across
@@ -141,10 +141,24 @@ magnitude from the smallest to the largest decile of shares ahead of it, the ano
 30 Dec 2019 was a thin holiday-week session, and its effective spread is 2.4× January's — which is the point of running
 more than one.
 
-Day 3's spread and OFI cells are empty, not pending: those two metrics need the day's full quote table (23 GB of derived
-NDJSON, 267 M rows), and that data was deleted to reclaim disk before it had been converted. Everything else on the day —
-correctness, the full priority classification, 1.24 M queue episodes — is computed and above. Re-running it is
-`ops/make.ps1 -Day S120825 -Gz S120825-v50.txt.gz -Steps gunzip,replay,convert,report` after re-downloading the file.
+**So does the adverse-selection result.** The realised spread at 30 s is negative on every day — −15.6, −5.1, −9.5 bps —
+so the liquidity provider in a liquid name losing to adverse selection inside 30 seconds is not a property of the two
+2019–2020 sessions; it holds on a 2025 day whose message mix is quite different (23.6 % replaces against 8.1 %). Median
+out-of-sample OFI R² is likewise stable across the three: 0.483, 0.578, 0.583.
+
+Day 3's spread and OFI arrived later than the rest, and on different hardware. They need that day's full quote table —
+264,412,841 rows — and the conversion ran the reference laptop out of headroom and had to be killed; the source NDJSON
+was then deleted to reclaim disk, so for a while those cells read `—`. All three days were later re-run end to end on a
+second machine (12 cores, 23 GB RAM, Ubuntu 22.04 under WSL2, same Temurin 21.0.12), where the conversion completed.
+
+That re-run is also the strongest reproduction check the project has. On every day `validation.json` came back
+byte-identical to the original run, the queue tables byte-identical, and spreads and OFI agreeing to ~1e-14 (D31) — a
+different OS, CPU and JDK build than the numbers were first measured on. So day 3's spread and OFI sit on a
+reconstruction verified identical to the one behind every other figure here. The scale and timing rows above remain the
+reference laptop's measurements; only the two research metrics are new.
+
+Re-running one day is `ops/make.sh --day S120825 --gz S120825-v50.txt.gz` (or `ops/make.ps1 -Day … -Gz …` on Windows)
+after re-downloading the file.
 
 ## Design (ten lines)
 
@@ -192,16 +206,23 @@ every number quoted.
 Full instructions, including every measured runtime and the disk budget, are in [`docs/setup.md`](docs/setup.md).
 Short version: JDK 21, Maven, Python 3.12 (`research/requirements.txt`), and ~35 GB of free disk per day.
 
-```powershell
-powershell -ExecutionPolicy Bypass -File ops/download.ps1 -Name 12302019.NASDAQ_ITCH50.gz   # resume + md5 when published
-powershell -ExecutionPolicy Bypass -File ops/make.ps1 -Day 12302019 -Gz 12302019.NASDAQ_ITCH50.gz
+```bash
+source ops/env.sh                                       # JDK, Maven, venv and classpath for this machine
+bash ops/download.sh 12302019.NASDAQ_ITCH50.gz          # resume; md5 when NASDAQ publishes one
+bash ops/make.sh --day 12302019 --gz 12302019.NASDAQ_ITCH50.gz
 # -> data/derived/12302019/ (NDJSON, validation.json, priority.ndjson, episodes.ndjson, ladder_AAPL.ndjson)
 # -> data/parquet/<table>/date=12302019/  and  research/results/numbers_12302019.md + charts
 python demo/make_demo.py --ladder data/derived/12302019/ladder_AAPL.ndjson --symbol AAPL --date 12302019 --perf data/perf/12302019.txt
 ```
 
-Every step runs as its own process with its exit code checked and its stderr kept next to its log, so a stage that dies
-stops the day instead of leaving a half-written result behind. `bash ops/run_days.sh` does every day in `ops/days.txt`
+```powershell
+powershell -ExecutionPolicy Bypass -File ops/download.ps1 -Name 12302019.NASDAQ_ITCH50.gz
+powershell -ExecutionPolicy Bypass -File ops/make.ps1 -Day 12302019 -Gz 12302019.NASDAQ_ITCH50.gz
+```
+
+The two drivers run the same eight steps and write the same files; `run_days.sh` picks the one for the platform it is
+on. Every step runs as its own process with its exit code checked and its stderr kept next to its log, so a stage that
+dies stops the day instead of leaving a half-written result behind. `bash ops/run_days.sh` does every day in `ops/days.txt`
 one at a time and finishes with `research/crossday.py`, which reads the per-day generated files back and writes
 [`research/results/crossday.md`](research/results/crossday.md) — the cross-day tables quoted above.
 

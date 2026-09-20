@@ -6,7 +6,7 @@
 | [`perf.md`](perf.md) | The Phase-2 performance record: naive → optimised tables under G1 and Generational ZGC, JFR allocation sites, and the measurements behind every number in the README's performance section. |
 | [`perf-raw/`](perf-raw/) | The raw benchmark rows and JFR recordings `perf.md` was written from — kept because re-running the matrix costs hours. |
 | [`screencast.md`](screencast.md) | Shot-by-shot script for the three-minute walkthrough, with the exact commands and the spoken numbers. |
-| [`vault/`](vault/) | A copy of the Obsidian vault the project is planned in: design spec, the four phase plans, the decision log (D1–D32), the daily log, and the ITCH 5.0 message-layout reference. |
+| [`vault/`](vault/) | A copy of the Obsidian vault the project is planned in: design spec, the four phase plans, the decision log (D1–D33), the daily log, and the ITCH 5.0 message-layout reference. |
 
 ## About `vault/`
 

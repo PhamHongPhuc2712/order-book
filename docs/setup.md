@@ -213,6 +213,6 @@ Rules of thumb:
 ## 8. Where the design lives
 
 `docs/vault/` is a copy of the Obsidian vault this project is planned in: the design spec, the four phase plans, the
-decision log (D1–D32), the daily log with every measurement behind every number, and the ITCH 5.0 message-layout
+decision log (D1–D33), the daily log with every measurement behind every number, and the ITCH 5.0 message-layout
 reference. Read `docs/vault/00 Index.md` first. Two caveats — the `[[wiki links]]` do not resolve on GitHub, and the
 vault itself, not this copy, is the source of truth, so re-copy rather than editing in place.
