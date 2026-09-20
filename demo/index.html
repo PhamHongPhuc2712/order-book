@@ -4,117 +4,102 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>lob-reconstruct — AAPL through the opening cross</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' rx='3' fill='%23080b10'/><rect x='3' y='3' width='9' height='2' fill='%23f0883e'/><rect x='3' y='6' width='5' height='2' fill='%23f0883e'/><rect x='3' y='9' width='7' height='2' fill='%233d9be9'/><rect x='3' y='12' width='4' height='2' fill='%233d9be9'/></svg>">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%23080b10'/%3E%3Crect x='3' y='3' width='9' height='2' fill='%23f0883e'/%3E%3Crect x='3' y='6' width='5' height='2' fill='%23f0883e'/%3E%3Crect x='3' y='9' width='7' height='2' fill='%233d9be9'/%3E%3Crect x='3' y='12' width='4' height='2' fill='%233d9be9'/%3E%3C/svg%3E">
 <style>
   :root {
     --bg:#080b10; --panel:#0e141d; --panel2:#121a25; --rule:#1b2532;
     --ink:#e6ecf4; --dim:#78879b; --faint:#4a5768;
     --bid:#3d9be9; --ask:#f0883e; --cross:#ffd166;
-    --row:22px;
+    --row:21px;
   }
   * { box-sizing:border-box; }
   html,body { background:var(--bg); }
   body {
-    margin:0; padding:28px 16px 48px; color:var(--ink);
+    margin:0; padding:24px 16px 44px; color:var(--ink);
     font:14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     -webkit-font-smoothing:antialiased;
   }
-  .wrap { max-width:880px; margin:0 auto; }
+  .wrap { max-width:1180px; margin:0 auto; }
   .num { font-family:ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace; font-variant-numeric:tabular-nums; }
 
-  /* ---- header ---------------------------------------------------------- */
-  header { display:flex; align-items:baseline; justify-content:space-between; gap:16px; flex-wrap:wrap; }
-  h1 { font-size:19px; font-weight:600; margin:0; letter-spacing:-0.01em; }
+  header { display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; }
+  h1 { font-size:18px; font-weight:600; margin:0; letter-spacing:-0.01em; }
   h1 .tick { color:var(--dim); font-weight:400; }
-  .clock { font-size:30px; font-weight:500; letter-spacing:0; line-height:1; }
+  .clock { margin-left:auto; font-size:28px; font-weight:500; line-height:1; }
   .clock .ms { color:var(--dim); font-size:0.62em; }
-  .feed { color:var(--dim); font-size:12.5px; margin:6px 0 20px; }
+  .spread { color:var(--dim); font-size:13px; min-width:104px; text-align:right; }
+  .spread b { color:var(--ink); font-weight:600; }
+  .feed { color:var(--dim); font-size:12.5px; margin:6px 0 16px; max-width:80ch; }
+
+  /* ---- stage: liquidity map + live ladder ------------------------------ */
+  .stage { display:flex; gap:12px; align-items:stretch; }
+  .mapwrap {
+    position:relative; flex:1 1 auto; min-width:0;
+    border:1px solid var(--rule); border-radius:7px; background:var(--panel); overflow:hidden;
+  }
+  #map { display:block; width:100%; height:452px; }
+  .maptag {
+    position:absolute; left:10px; top:8px; font-size:10.5px; letter-spacing:0.05em;
+    color:var(--faint); pointer-events:none;
+  }
+  .ladder {
+    flex:0 0 272px; border:1px solid var(--rule); border-radius:7px;
+    background:var(--panel); overflow:hidden; display:flex; flex-direction:column;
+  }
+  .lrow { display:grid; grid-template-columns:34px 62px 58px 1fr; align-items:center; height:var(--row); }
+  .lhead { height:24px; color:var(--faint); font-size:10px; letter-spacing:0.05em;
+           border-bottom:1px solid var(--rule); background:var(--panel2); }
+  .lhead > * { padding:0 7px; text-align:right; }
+  .lhead .d { text-align:left; padding-left:9px; }
+  #ladder { flex:1 1 auto; padding:2px 0; }
+  .lrow .oc, .lrow .sh, .lrow .px { padding:0 7px; text-align:right; }
+  .lrow .oc { font-size:10.5px; color:var(--faint); }
+  .lrow .sh { font-size:12px; color:var(--ink); }
+  .lrow .px { font-size:12px; }
+  .lrow.ask .px { color:var(--ask); } .lrow.bid .px { color:var(--bid); }
+  .lrow .bar { position:relative; height:100%; margin-left:9px; margin-right:7px; }
+  .lrow .bar .fill { position:absolute; left:0; top:4px; bottom:4px; border-radius:1px; min-width:2px; }
+  .lrow.best { background:#141d2a; }
+  .lrow.best .px, .lrow.best .sh { color:var(--ink); font-weight:600; }
+  .midrow { height:24px; display:flex; align-items:center; justify-content:center; gap:7px;
+            font-size:10.5px; color:var(--faint); letter-spacing:0.03em;
+            border-top:1px solid var(--rule); border-bottom:1px solid var(--rule); background:#0a0f16; }
+  .midrow b { color:var(--ink); font-weight:600; }
 
   /* ---- transport ------------------------------------------------------- */
-  .transport { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
-  button {
-    font:inherit; font-size:13px; color:var(--ink); background:var(--panel2);
-    border:1px solid var(--rule); border-radius:5px; padding:5px 11px; cursor:pointer;
-  }
+  .transport { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:12px; }
+  button { font:inherit; font-size:13px; color:var(--ink); background:var(--panel2);
+           border:1px solid var(--rule); border-radius:5px; padding:5px 11px; cursor:pointer; }
   button:hover { border-color:#31415a; }
   button:focus-visible { outline:2px solid var(--bid); outline-offset:2px; }
-  #play { min-width:76px; font-weight:500; }
+  #play { min-width:74px; font-weight:500; }
   .speeds { display:inline-flex; border:1px solid var(--rule); border-radius:5px; overflow:hidden; }
   .speeds button { border:0; border-radius:0; background:transparent; color:var(--dim); padding:5px 10px; }
   .speeds button + button { border-left:1px solid var(--rule); }
   .speeds button.on { background:var(--bid); color:#04090f; font-weight:600; }
-  .stale { margin-left:auto; color:var(--faint); font-size:12px; font-variant-numeric:tabular-nums; }
-  .spread { color:var(--dim); font-size:13px; }
-  .spread b { color:var(--ink); font-weight:500; }
-  .spread.crossed { color:var(--cross); }
-  .spread.crossed b { color:var(--cross); }
-  input[type=range] {
-    width:100%; margin:0 0 18px; height:20px; background:transparent; cursor:pointer; -webkit-appearance:none; appearance:none;
-  }
-  input[type=range]::-webkit-slider-runnable-track { height:3px; background:var(--rule); border-radius:2px; }
-  input[type=range]::-moz-range-track { height:3px; background:var(--rule); border-radius:2px; }
-  input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:13px; height:13px; margin-top:-5px; border-radius:50%; background:var(--ink); }
-  input[type=range]::-moz-range-thumb { width:13px; height:13px; border:0; border-radius:50%; background:var(--ink); }
-  input[type=range]:focus-visible { outline:2px solid var(--bid); outline-offset:3px; }
+  #scrub { flex:1 1 220px; min-width:160px; height:20px; background:transparent; cursor:pointer; -webkit-appearance:none; appearance:none; }
+  #scrub::-webkit-slider-runnable-track { height:3px; background:var(--rule); border-radius:2px; }
+  #scrub::-moz-range-track { height:3px; background:var(--rule); border-radius:2px; }
+  #scrub::-webkit-slider-thumb { -webkit-appearance:none; width:13px; height:13px; margin-top:-5px; border-radius:50%; background:var(--ink); }
+  #scrub::-moz-range-thumb { width:13px; height:13px; border:0; border-radius:50%; background:var(--ink); }
+  #scrub:focus-visible { outline:2px solid var(--bid); outline-offset:3px; }
+  .stale { color:var(--faint); font-size:12px; font-variant-numeric:tabular-nums; min-width:172px; }
 
-  /* ---- ladder ---------------------------------------------------------- */
-  .ladder { border:1px solid var(--rule); border-radius:7px; background:var(--panel); overflow:hidden; }
-  .lrow { display:grid; grid-template-columns:62px 92px 84px 1fr; align-items:center; height:var(--row); }
-  .lhead {
-    height:26px; color:var(--faint); font-size:10.5px; letter-spacing:0.06em;
-    border-bottom:1px solid var(--rule); background:var(--panel2);
-  }
-  .lhead > * { padding:0 10px; text-align:right; }
-  .lhead .depth { text-align:left; padding-left:12px; }
-  #ladder { min-height:calc(var(--row) * 20); padding:3px 0; }
-
-  .lrow .oc, .lrow .sh, .lrow .px { padding:0 10px; text-align:right; }
-  .lrow .oc { font-size:11px; color:var(--faint); }
-  .lrow .sh { font-size:12.5px; color:var(--ink); }
-  .lrow .px { font-size:12.5px; color:var(--dim); }
-  .lrow .bar { position:relative; height:100%; margin-left:12px; }
-  .lrow .bar .fill { position:absolute; left:0; top:4px; bottom:4px; border-radius:1px; min-width:2px; }
-
-  .lrow.best .px, .lrow.best .sh { color:var(--ink); font-weight:600; }
-  .lrow.best { background:#141d2a; }
-  .lrow.ask .px { color:var(--ask); }
-  .lrow.bid .px { color:var(--bid); }
-  .lrow.xrow { background:rgba(255,209,102,0.07); }
-
-  .spreadrow {
-    height:26px; display:flex; align-items:center; justify-content:center; gap:9px;
-    font-size:11px; color:var(--faint); letter-spacing:0.04em;
-    border-top:1px solid var(--rule); border-bottom:1px solid var(--rule); background:#0a0f16;
-  }
-  .spreadrow b { color:var(--ink); font-weight:600; }
-  .spreadrow.crossed { color:var(--cross); background:rgba(255,209,102,0.08); }
-
-  /* ---- marker + events ------------------------------------------------- */
-  .marker {
-    display:none; margin-top:12px; padding:9px 13px; border-radius:6px;
-    border:1px solid rgba(255,209,102,0.32); background:rgba(255,209,102,0.08); color:var(--cross); font-size:13px;
-  }
+  .marker { display:none; margin-top:12px; padding:9px 13px; border-radius:6px;
+            border:1px solid rgba(255,209,102,0.32); background:rgba(255,209,102,0.08);
+            color:var(--cross); font-size:13px; }
   .marker.on { display:block; }
-  .tape { margin-top:12px; font-size:11.5px; color:var(--faint); line-height:1.8; }
-  .tape span { color:var(--dim); }
-  .cap { margin-top:22px; padding-top:14px; border-top:1px solid var(--rule); color:var(--faint); font-size:11.5px; line-height:1.7; }
+  .cap { margin-top:18px; padding-top:13px; border-top:1px solid var(--rule); color:var(--faint); font-size:11.5px; line-height:1.7; }
   .cap b { color:var(--dim); font-weight:500; }
 
-  @media (prefers-reduced-motion:reduce) { * { transition:none !important; animation:none !important; } }
-  @media (max-width:620px) {
-    body { padding:20px 12px 40px; }
-    .lrow { grid-template-columns:50px 62px 58px 1fr; }
-    .lhead { font-size:9.5px; letter-spacing:0.02em; }
-    .lrow .oc, .lrow .sh, .lrow .px { padding:0 6px; }
-    .lrow .oc { font-size:10.5px; }
-    .lrow .sh, .lrow .px { font-size:11.5px; }
-    .lrow .bar { margin-left:8px; margin-right:8px; }
-    .lhead > * { padding:0 6px; }
-    .lhead .depth { padding-left:8px; }
-    .lhead .hint { display:none; }
-    .clock { font-size:26px; }
-    .stale { margin-left:0; }
-    .spread { width:100%; }
+  @media (prefers-reduced-motion:reduce) { * { transition:none !important; } }
+  @media (max-width:860px) {
+    .stage { flex-direction:column; }
+    .ladder { flex:1 1 auto; }
+    #map { height:300px; }
+    .clock { font-size:24px; margin-left:0; }
+    .spread { margin-left:auto; }
+    .stale { min-width:0; }
   }
 </style>
 </head>
@@ -123,28 +108,31 @@
   <header>
     <h1 id="title">Level-3 order book replay</h1>
     <div class="clock num" id="clock">--:--:--<span class="ms">.---</span></div>
+    <div class="spread" id="state"></div>
   </header>
   <p class="feed" id="subtitle">NASDAQ TotalView-ITCH 5.0, reconstructed order by order.</p>
+
+  <div class="stage">
+    <div class="mapwrap">
+      <canvas id="map"></canvas>
+      <div class="maptag" id="maptag">LIQUIDITY MAP · time → · price ↑ · brightness = resting shares</div>
+    </div>
+    <div class="ladder">
+      <div class="lrow lhead"><div>ORD</div><div>SHARES</div><div>PRICE</div><div class="d">DEPTH</div></div>
+      <div id="ladder"></div>
+    </div>
+  </div>
 
   <div class="transport">
     <button id="play">Play</button>
     <span class="speeds">
       <button class="spd" data-s="1">1×</button><button class="spd on" data-s="10">10×</button><button class="spd" data-s="100">100×</button>
     </span>
+    <input type="range" id="scrub" min="0" max="0" value="0" aria-label="Scrub through the replay">
     <span class="stale" id="stale"></span>
-    <span class="spread" id="state"></span>
-  </div>
-  <input type="range" id="scrub" min="0" max="0" value="0" aria-label="Scrub through the replay">
-
-  <div class="ladder">
-    <div class="lrow lhead">
-      <div>ORDERS</div><div>SHARES</div><div>PRICE</div><div class="depth">DEPTH <span class="hint">— one segment per resting order</span></div>
-    </div>
-    <div id="ladder"></div>
   </div>
 
   <div class="marker" id="marker"></div>
-  <div class="tape" id="events"></div>
   <div class="cap" id="cap"></div>
 </div>
 
@@ -156,25 +144,25 @@
   const $ = id => document.getElementById(id);
   if (!snaps.length) { $('state').textContent = 'no data.js — run demo/make_demo.py'; return; }
 
-  $('title').innerHTML = `${META.symbol || ''} <span class="tick">through the opening cross</span>`;
+  $('title').innerHTML = `${META.symbol || ''} <span class="tick">· NASDAQ TotalView-ITCH 5.0 · ${META.date || ''}</span>`;
   $('subtitle').textContent =
-    `NASDAQ TotalView-ITCH 5.0, ${META.date || ''} — every order rebuilt from the raw feed. Ten levels a side, and each bar is `
-    + `split into one segment per resting order: the detail a Level-2 depth feed cannot carry. Watch the spread collapse once `
-    + `the opening auction prints and continuous trading takes over.`;
+    'Every order rebuilt from the raw feed. The map is the whole replay at once — each column is the book at that '
+    + 'instant, brightness is shares resting at that price — and the ladder is the book right now, with each depth bar '
+    + 'split into one segment per resting order. That order count is the Level-3 detail a depth feed cannot carry.';
 
   const clock = $('clock'), state = $('state'), ladder = $('ladder'), scrub = $('scrub'),
-        marker = $('marker'), events = $('events'), stale = $('stale');
+        marker = $('marker'), stale = $('stale'), cv = $('map'), ctx = cv.getContext('2d');
   scrub.max = snaps.length - 1;
 
   const fmtT = ns => {
     const ms = Math.floor(ns / 1e6);
     const h = Math.floor(ms / 3.6e6), m = Math.floor(ms / 6e4) % 60, s = Math.floor(ms / 1e3) % 60, f = ms % 1000;
-    return [String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0'), String(f).padStart(3,'0')];
+    return [String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0'), String(f).padStart(3,'0')];
   };
   const fmtN = n => n.toLocaleString('en-US');
+  const fmtK = n => n >= 10000 ? (n/1000).toFixed(1)+'K' : fmtN(n);
 
-  // One segment per resting order: the bar carries the order count, not just the size.
-  // Capped because past ~40 the gaps stop resolving and a solid bar is the honest rendering.
+  // One segment per resting order. Capped: past ~40 the gaps stop resolving and a solid bar is the honest rendering.
   function segments(count, colour) {
     const n = Math.max(1, Math.min(count | 0, 40));
     if (n === 1) return colour;
@@ -182,14 +170,90 @@
     return `repeating-linear-gradient(90deg, ${colour} 0, ${colour} calc(${w}% - 1.5px), transparent calc(${w}% - 1.5px), transparent ${w}%)`;
   }
 
+  // ---- liquidity map ----------------------------------------------------
+  // Static: the whole window is drawn once to an offscreen canvas, then each frame is that image plus a playhead.
+  // X is linear in time, not in snapshot index, so a quiet book draws as a wide flat band instead of being compressed.
+  const T0 = snaps[0].t, T1 = snaps[snaps.length - 1].t;
+  let PLO = Infinity, PHI = -Infinity, SMAX = 1;
+  for (const s of snaps) for (const l of s.b.concat(s.a)) {
+    if (l[0] < PLO) PLO = l[0]; if (l[0] > PHI) PHI = l[0]; if (l[1] > SMAX) SMAX = l[1];
+  }
+  PLO -= 0.02; PHI += 0.02;
+  const PAD_L = 54, PAD_B = 18, PAD_T = 34;
+  let off = document.createElement('canvas'), octx = off.getContext('2d'), W = 0, H = 0, dpr = 1;
+
+  const xOf = t => PAD_L + (W - PAD_L - 6) * (t - T0) / (T1 - T0);
+  const yOf = p => PAD_T + (H - PAD_T - PAD_B) * (PHI - p) / (PHI - PLO);
+
+  function paintMap() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = cv.clientWidth; H = cv.clientHeight;
+    for (const c of [cv, off]) { c.width = W * dpr; c.height = H * dpr; }
+    off.style.width = W + 'px';
+    octx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    octx.clearRect(0, 0, W, H);
+
+    const tickH = Math.max(1.5, (H - PAD_T - PAD_B) / ((PHI - PLO) * 100));
+
+    // price gridlines and labels, every 25 cents
+    octx.font = '10px ui-monospace, Menlo, Consolas, monospace';
+    octx.textAlign = 'right'; octx.textBaseline = 'middle';
+    for (let p = Math.ceil(PLO * 4) / 4; p <= PHI; p += 0.25) {
+      const y = yOf(p);
+      octx.strokeStyle = '#161e2a'; octx.beginPath();
+      octx.moveTo(PAD_L, y + 0.5); octx.lineTo(W - 6, y + 0.5); octx.stroke();
+      octx.fillStyle = '#4a5768'; octx.fillText('$' + p.toFixed(2), PAD_L - 7, y);
+    }
+    // time labels on the minute
+    octx.textAlign = 'center'; octx.textBaseline = 'top';
+    for (let t = Math.ceil(T0 / 60e9) * 60e9; t <= T1; t += 60e9) {
+      const x = xOf(t);
+      octx.strokeStyle = '#161e2a'; octx.beginPath();
+      octx.moveTo(x + 0.5, PAD_T); octx.lineTo(x + 0.5, H - PAD_B); octx.stroke();
+      octx.fillStyle = '#4a5768'; octx.fillText(fmtT(t)[0].slice(0, 5), x, H - PAD_B + 4);
+    }
+
+    // the book itself: one rectangle per resting level, spanning until the next snapshot
+    const logMax = Math.log1p(SMAX);
+    for (let i = 0; i < snaps.length; i++) {
+      const s = snaps[i];
+      const x = xOf(s.t), x2 = i + 1 < snaps.length ? xOf(snaps[i + 1].t) : W - 6;
+      const w = Math.max(1, x2 - x);
+      for (const [side, rows] of [['a', s.a], ['b', s.b]]) {
+        for (const l of rows) {
+          const a = 0.14 + 0.86 * Math.log1p(l[1]) / logMax;
+          octx.fillStyle = side === 'a' ? `rgba(240,136,62,${a})` : `rgba(61,155,233,${a})`;
+          octx.fillRect(x, yOf(l[0]) - tickH / 2, w, tickH);
+        }
+      }
+    }
+    // the opening auction print
+    for (const m of marks) if (m.cross) {
+      const x = xOf(m.t);
+      octx.strokeStyle = 'rgba(255,209,102,0.85)'; octx.setLineDash([3, 3]);
+      octx.beginPath(); octx.moveTo(x + 0.5, PAD_T); octx.lineTo(x + 0.5, H - PAD_B); octx.stroke();
+      octx.setLineDash([]);
+      octx.fillStyle = '#ffd166'; octx.textBaseline = 'top';
+      const label = 'cross ' + fmtN(m.shares) + ' @ $' + m.price.toFixed(2);
+      const fits = x + 5 + octx.measureText(label).width < W - 6;   // flip to the left rather than run off
+      octx.textAlign = fits ? 'left' : 'right';
+      octx.fillText(label, x + (fits ? 5 : -5), PAD_T + 2);
+    }
+  }
+
+  function paintFrame(t) {
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    ctx.drawImage(off, 0, 0, W, H);
+    const x = xOf(Math.min(Math.max(t, T0), T1));
+    ctx.strokeStyle = 'rgba(230,236,244,0.85)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x + 0.5, PAD_T); ctx.lineTo(x + 0.5, H - PAD_B); ctx.stroke();
+  }
+
+  // ---- ladder -----------------------------------------------------------
   let i = 0, playing = false, speed = 10, last = 0, simT = snaps[0].t;
 
-  function paintClock(ns) {
-    const [hms, ms] = fmtT(ns);
-    clock.innerHTML = `${hms}<span class="ms">.${ms}</span>`;
-  }
-  // Snapshots exist only where the top of book changed, so quiet stretches are real: the longest here is 55.8 s
-  // before the open. Saying so is better than letting a still ladder look like a stalled page.
+  function paintClock(ns) { const [a, b] = fmtT(ns); clock.innerHTML = `${a}<span class="ms">.${b}</span>`; }
   function paintStale(ns) {
     const dt = (ns - snaps[i].t) / 1e9;
     stale.textContent = dt >= 2 ? `book unchanged for ${dt.toFixed(0)} s` : '';
@@ -199,53 +263,41 @@
     i = k;
     const s = snaps[k];
     simT = Math.max(simT, s.t);
-    paintClock(s.t);
-    scrub.value = k;
+    paintClock(s.t); scrub.value = k;
 
-    const bid = new Map(s.b.map(l => [l[0], l])), ask = new Map(s.a.map(l => [l[0], l]));
     const bb = s.b.length ? s.b[0][0] : null, ba = s.a.length ? s.a[0][0] : null;
     const crossed = bb !== null && ba !== null && bb >= ba;
-
-    state.className = 'spread' + (crossed ? ' crossed' : '');
-    state.innerHTML = crossed
-      ? 'book crossed — pre-open'
+    state.innerHTML = crossed ? '<b>crossed</b>'
       : (bb !== null && ba !== null ? `spread <b>$${(ba - bb).toFixed(2)}</b>` : '');
 
     const maxSh = Math.max(1, ...s.b.map(l => l[1]), ...s.a.map(l => l[1]));
     let html = '';
-    for (let j = s.a.length - 1; j >= 0; j--) html += rowHtml('ask', s.a[j], s.a[j][0] === ba, maxSh, crossed && s.a[j][0] <= bb);
-    html += crossed
-      ? `<div class="spreadrow crossed"><span>book crossed</span><span>·</span><span>bid <b class="num">$${bb.toFixed(2)}</b> above ask <b class="num">$${ba.toFixed(2)}</b></span></div>`
-      : (bb !== null && ba !== null
-          ? `<div class="spreadrow"><span>spread</span><b class="num">$${(ba - bb).toFixed(2)}</b><span>·</span><span>mid</span><b class="num">$${((bb + ba) / 2).toFixed(3)}</b></div>`
-          : `<div class="spreadrow"><span>one side empty</span></div>`);
-    for (const l of s.b) html += rowHtml('bid', l, l[0] === bb, maxSh, crossed && l[0] >= ba);
+    for (let j = s.a.length - 1; j >= 0; j--) html += rowHtml('ask', s.a[j], s.a[j][0] === ba, maxSh);
+    html += bb !== null && ba !== null
+      ? `<div class="midrow">${crossed ? '<span>book crossed</span>'
+          : `<span>spread</span><b class="num">$${(ba-bb).toFixed(2)}</b><span>·</span><span>mid</span><b class="num">$${((bb+ba)/2).toFixed(3)}</b>`}</div>`
+      : '<div class="midrow"><span>one side empty</span></div>';
+    for (const l of s.b) html += rowHtml('bid', l, l[0] === bb, maxSh);
     ladder.innerHTML = html;
 
-    const seen = marks.filter(m => m.t <= s.t);
-    const cross = seen.filter(m => m.cross).slice(-1)[0];
+    const cross = marks.filter(m => m.cross && m.t <= s.t).slice(-1)[0];
     if (cross && s.t - cross.t < 30e9) {
       marker.classList.add('on');
       marker.innerHTML = `<b>${fmtT(cross.t)[0]}</b> — opening cross printed: <b class="num">${fmtN(cross.shares)}</b> shares at <b class="num">$${cross.price.toFixed(2)}</b> in one message (Q, type ${cross.cross})`;
     } else marker.classList.remove('on');
-
-    events.innerHTML = seen.map(m => m.cross
-      ? `<span>${fmtT(m.t)[0]}</span> cross ${m.cross} ${fmtN(m.shares)} @ $${m.price.toFixed(2)}`
-      : `<span>${fmtT(m.t)[0]}</span> system event ${m.system}${m.system === 'Q' ? ' — market open' : ''}`
-    ).join('&nbsp;&nbsp;·&nbsp;&nbsp;');
+    paintFrame(s.t);
   }
 
-  function rowHtml(side, l, isBest, maxSh, inX) {
-    const w = Math.max(0.6, 100 * l[1] / maxSh);
+  function rowHtml(side, l, isBest, maxSh) {
+    const w = Math.max(3, 100 * l[1] / maxSh);
     const colour = side === 'bid' ? '#3d9be9' : '#f0883e';
-    return `<div class="lrow ${side}${isBest ? ' best' : ''}${inX ? ' xrow' : ''}">`
-      + `<div class="oc num">${fmtN(l[2])}</div>`
-      + `<div class="sh num">${fmtN(l[1])}</div>`
+    return `<div class="lrow ${side}${isBest ? ' best' : ''}">`
+      + `<div class="oc num">${fmtN(l[2])}</div><div class="sh num">${fmtK(l[1])}</div>`
       + `<div class="px num">${l[0].toFixed(2)}</div>`
-      + `<div class="bar"><div class="fill" style="width:${w}%;background:${segments(l[2], colour)}"></div></div>`
-      + `</div>`;
+      + `<div class="bar"><div class="fill" style="width:${w}%;background:${segments(l[2], colour)}"></div></div></div>`;
   }
 
+  // ---- transport --------------------------------------------------------
   function tick(now) {
     if (!playing) return;
     if (last) {
@@ -253,8 +305,7 @@
       let k = i;
       while (k + 1 < snaps.length && snaps[k + 1].t <= simT) k++;
       if (k !== i) render(k);
-      paintClock(simT);        // every frame, so time keeps moving while the book does not
-      paintStale(simT);
+      paintClock(simT); paintStale(simT); paintFrame(simT);
     }
     last = now;
     if (i >= snaps.length - 1) { playing = false; $('play').textContent = 'Replay'; last = 0; return; }
@@ -272,22 +323,29 @@
     document.querySelectorAll('.spd').forEach(x => x.classList.toggle('on', x === b));
   });
   scrub.oninput = () => { simT = snaps[+scrub.value].t; render(+scrub.value); stale.textContent = ''; };
+  cv.addEventListener('click', e => {                       // click the map to jump there
+    const r = cv.getBoundingClientRect();
+    const t = T0 + (T1 - T0) * (e.clientX - r.left - PAD_L) / (r.width - PAD_L - 6);
+    let k = 0; while (k + 1 < snaps.length && snaps[k + 1].t <= t) k++;
+    playing = false; $('play').textContent = 'Play'; stale.textContent = '';
+    simT = snaps[k].t; render(k);
+  });
   document.addEventListener('keydown', e => {
-    if (e.target.tagName === 'BUTTON' && e.key === ' ') return;
     if (e.key === ' ') { e.preventDefault(); toggle(); }
     if (e.key === 'ArrowRight' && i < snaps.length - 1) { playing = false; $('play').textContent = 'Play'; simT = snaps[i+1].t; render(i + 1); }
-    if (e.key === 'ArrowLeft' && i > 0) { playing = false; $('play').textContent = 'Play'; simT = snaps[i-1].t; render(i - 1); }
+    if (e.key === 'ArrowLeft'  && i > 0)                { playing = false; $('play').textContent = 'Play'; simT = snaps[i-1].t; render(i - 1); }
   });
+  let rz; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { paintMap(); paintFrame(snaps[i].t); }, 120); });
 
   $('cap').innerHTML =
-    `<b>${fmtN(snaps.length)}</b> snapshots on a 100 ms grid — only grid points where the top of book changed. `
-    + `Space plays and pauses; arrow keys step one snapshot. `
-    + (PERF
-      ? `<br>Engine apply latency, 20-symbol subset, final configuration (${PERF.gc}): `
-        + `p50 <b>${fmtN(PERF.p50)} ns</b> · p90 <b>${fmtN(PERF.p90)} ns</b> · p99 <b>${fmtN(PERF.p99)} ns</b> · p99.9 <b>${fmtN(PERF.p999)} ns</b> · max <b>${(PERF.max / 1e6).toFixed(1)} ms</b>`
-        + (PERF.msgsPerSec ? `. Full day <b>${fmtN(PERF.msgsPerSec)} msgs/s</b>, single-threaded.` : '.')
-      : `Latency percentiles: see docs/perf.md.`);
+    `<b>${fmtN(snaps.length)}</b> snapshots on a 100 ms grid — only grid points where the top of book changed, so a flat `
+    + `band on the map is a genuinely still book. The map carries the <b>top ten levels a side</b>, which is what the slice `
+    + `holds; it is not full depth. Click the map to jump, space plays and pauses, arrow keys step one snapshot.`
+    + (PERF ? `<br>Engine apply latency, 20-symbol subset, final configuration (${PERF.gc}): `
+        + `p50 <b>${fmtN(PERF.p50)} ns</b> · p90 <b>${fmtN(PERF.p90)} ns</b> · p99 <b>${fmtN(PERF.p99)} ns</b> · p99.9 <b>${fmtN(PERF.p999)} ns</b> · max <b>${(PERF.max/1e6).toFixed(1)} ms</b>`
+        + (PERF.msgsPerSec ? `. Full day <b>${fmtN(PERF.msgsPerSec)} msgs/s</b>, single-threaded.` : '.') : '');
 
+  paintMap();
   render(0);
 })();
 </script>
