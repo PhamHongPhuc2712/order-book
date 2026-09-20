@@ -24,7 +24,7 @@ Tabs to have open: <https://phamhongphuc2712.github.io/order-book/>, `research/r
 | t | screen | command | say |
 |---|---|---|---|
 | 0:00 | terminal | `java -cp "$CP" sg.phuc.lob.replay.Probe data/itch/12302019.bin` | "This is what NASDAQ actually sends: 269 million length-prefixed binary messages for one day, every symbol. The framing check passes on all of them, and the type histogram is the day — 117 million adds, 114 million deletes." |
-| 0:30 | browser, live demo | play at 10× from 9:29:30 | "A Level-3 book has every order, so each price shows shares *and* how many orders are resting there. Pre-open the book is legitimately crossed; the opening cross prints here and resolves it." |
+| 0:30 | browser, live demo | play at 10× from 9:29:30 | "A Level-3 book has every order, so each price shows shares *and* how many orders rest there — every depth bar is split into one segment per order. The opening auction prints 269,000 shares in a single message, and the spread collapses from fourteen cents to three within three seconds of it." |
 | 1:00 | editor, `validation.json` | — | "Zero structural violations. The interesting counter is priority: 0.19 % of executions don't hit the head of the queue, and every one is either a burst reordering inside one match event or an isolated odd-lot skip. None on this day is off the best price, so the book itself is right." |
 | 1:20 | editor, `crossday.md` | — | "Three days — 2019, 2020 and 2025 — one-point-three-four billion messages. Structural counters are zero on all three, and the priority rate stays around a fifth of a percent. On the 2025 day, 42 violations out of 33,000 do sit off the best price; they are six sweeps in five small-caps, and they are reported rather than explained away." |
 | 1:40 | editor, `crossday.md` | scroll to the research table | "And the results replicate. The realised spread at 30 seconds is negative on all three days, so in liquid names the liquidity provider is losing to adverse selection inside 30 seconds — not an artifact of one session." |
@@ -42,6 +42,8 @@ Tabs to have open: <https://phamhongphuc2712.github.io/order-book/>, `research/r
 | 1.34 billion across three days | 268,744,780 + 423,285,709 + 650,338,709 | `crossday.md` §1 |
 | priority rate across days | 0.186 / 0.129 / 0.234 % | `crossday.md` §2 |
 | 42 off-best on day 3 | 42 = 0.12 % of 33,674 | `numbers_S120825.md` §2 |
+| 269,000-share cross print | 269,367 @ $289.44, 09:30:00.776 | `ladder_AAPL.ndjson` marker line |
+| spread collapse, 14¢ to 3¢ | $0.14 pre-open → $0.03 at 09:30:03 | `ladder_AAPL.ndjson` |
 | realised spread negative on all three | −15.6 / −5.1 / −9.5 bps | `crossday.md` §3 |
 | 157 → 6 B/msg, p99.9 15 → under 3 µs, 1.5× | 156.8 → 5.9 · 14.8 → 2.7 µs | `docs/perf.md` |
 | `+long` cut allocation a third, no wall-time change | 156.8 → 102.3 B/msg | `docs/perf.md` |
@@ -54,8 +56,10 @@ Tabs to have open: <https://phamhongphuc2712.github.io/order-book/>, `research/r
   measured on a 12-core Linux box; 21 s on the reference laptop, cached). Run it once before recording so the take is
   the fast one — then start it, say the line, and cut to the result.
 - The demo slice starts at **9:24:40**, not 9:28 — there is more pre-open runway than the old storyboard assumed. Scrub
-  to about 9:29:50 before hitting play so the crossed pre-open book is on screen within a few seconds and the cross
-  lands shortly after.
+  to about 9:29:50 before hitting play so the cross lands within a few seconds and the spread collapse is on screen.
+- **Do not say the pre-open book is crossed.** It is not, on this day: AAPL's displayed book is uncrossed in all 1,593
+  snapshots between 04:00 and 09:32. Crossing does occur on `12302019` — 642 times, all within a second of a halt
+  resumption (D26) — but never here. The storyboard claimed it for months; the data never supported it.
 - Record the demo from the **published URL**, not the local file: it is the thing a reviewer will actually open, and it
   proves the deploy works. It makes no network requests once loaded.
 - Keep `validation.json` pretty-printed in the editor rather than raw in the terminal — the counter names are the point.
