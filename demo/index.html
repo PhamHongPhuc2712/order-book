@@ -42,7 +42,8 @@
   .speeds button { border:0; border-radius:0; background:transparent; color:var(--dim); padding:5px 10px; }
   .speeds button + button { border-left:1px solid var(--rule); }
   .speeds button.on { background:var(--bid); color:#04090f; font-weight:600; }
-  .spread { margin-left:auto; color:var(--dim); font-size:13px; }
+  .stale { margin-left:auto; color:var(--faint); font-size:12px; font-variant-numeric:tabular-nums; }
+  .spread { color:var(--dim); font-size:13px; }
   .spread b { color:var(--ink); font-weight:500; }
   .spread.crossed { color:var(--cross); }
   .spread.crossed b { color:var(--cross); }
@@ -111,7 +112,8 @@
     .lhead .depth { padding-left:8px; }
     .lhead .hint { display:none; }
     .clock { font-size:26px; }
-    .spread { margin-left:0; width:100%; }
+    .stale { margin-left:0; }
+    .spread { width:100%; }
   }
 </style>
 </head>
@@ -126,8 +128,9 @@
   <div class="transport">
     <button id="play">Play</button>
     <span class="speeds">
-      <button class="spd on" data-s="1">1×</button><button class="spd" data-s="10">10×</button><button class="spd" data-s="100">100×</button>
+      <button class="spd" data-s="1">1×</button><button class="spd on" data-s="10">10×</button><button class="spd" data-s="100">100×</button>
     </span>
+    <span class="stale" id="stale"></span>
     <span class="spread" id="state"></span>
   </div>
   <input type="range" id="scrub" min="0" max="0" value="0" aria-label="Scrub through the replay">
@@ -159,7 +162,7 @@
     + `the opening auction prints and continuous trading takes over.`;
 
   const clock = $('clock'), state = $('state'), ladder = $('ladder'), scrub = $('scrub'),
-        marker = $('marker'), events = $('events');
+        marker = $('marker'), events = $('events'), stale = $('stale');
   scrub.max = snaps.length - 1;
 
   const fmtT = ns => {
@@ -178,14 +181,24 @@
     return `repeating-linear-gradient(90deg, ${colour} 0, ${colour} calc(${w}% - 1.5px), transparent calc(${w}% - 1.5px), transparent ${w}%)`;
   }
 
-  let i = 0, playing = false, speed = 1, last = 0, simT = snaps[0].t;
+  let i = 0, playing = false, speed = 10, last = 0, simT = snaps[0].t;
+
+  function paintClock(ns) {
+    const [hms, ms] = fmtT(ns);
+    clock.innerHTML = `${hms}<span class="ms">.${ms}</span>`;
+  }
+  // Snapshots exist only where the top of book changed, so quiet stretches are real: the longest here is 55.8 s
+  // before the open. Saying so is better than letting a still ladder look like a stalled page.
+  function paintStale(ns) {
+    const dt = (ns - snaps[i].t) / 1e9;
+    stale.textContent = dt >= 2 ? `book unchanged for ${dt.toFixed(0)} s` : '';
+  }
 
   function render(k) {
     i = k;
     const s = snaps[k];
     simT = Math.max(simT, s.t);
-    const [hms, ms] = fmtT(s.t);
-    clock.innerHTML = `${hms}<span class="ms">.${ms}</span>`;
+    paintClock(s.t);
     scrub.value = k;
 
     const bid = new Map(s.b.map(l => [l[0], l])), ask = new Map(s.a.map(l => [l[0], l]));
@@ -239,6 +252,8 @@
       let k = i;
       while (k + 1 < snaps.length && snaps[k + 1].t <= simT) k++;
       if (k !== i) render(k);
+      paintClock(simT);        // every frame, so time keeps moving while the book does not
+      paintStale(simT);
     }
     last = now;
     if (i >= snaps.length - 1) { playing = false; $('play').textContent = 'Replay'; last = 0; return; }
@@ -247,6 +262,7 @@
   function toggle() {
     if (i >= snaps.length - 1) { simT = snaps[0].t; render(0); }
     playing = !playing; $('play').textContent = playing ? 'Pause' : 'Play'; last = 0;
+    if (!playing) stale.textContent = '';
     if (playing) requestAnimationFrame(tick);
   }
   $('play').onclick = toggle;
@@ -254,7 +270,7 @@
     speed = +b.dataset.s;
     document.querySelectorAll('.spd').forEach(x => x.classList.toggle('on', x === b));
   });
-  scrub.oninput = () => { simT = snaps[+scrub.value].t; render(+scrub.value); };
+  scrub.oninput = () => { simT = snaps[+scrub.value].t; render(+scrub.value); stale.textContent = ''; };
   document.addEventListener('keydown', e => {
     if (e.target.tagName === 'BUTTON' && e.key === ' ') return;
     if (e.key === ' ') { e.preventDefault(); toggle(); }
