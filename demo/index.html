@@ -23,13 +23,23 @@
   .num { font-family:ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace; font-variant-numeric:tabular-nums; }
 
   header { display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; }
-  h1 { font-size:18px; font-weight:600; margin:0; letter-spacing:-0.01em; }
+  h1 { font-size:16px; font-weight:600; margin:0; letter-spacing:-0.01em; }
   h1 .tick { color:var(--dim); font-weight:400; }
-  .clock { margin-left:auto; font-size:28px; font-weight:500; line-height:1; }
+  #about { margin-left:auto; font-size:12px; color:var(--dim); }
+  #about summary { cursor:pointer; list-style:none; }
+  #about summary::-webkit-details-marker { display:none; }
+  #about summary::before { content:''; display:inline-block; width:11px; height:11px; margin-right:6px;
+    vertical-align:-1px; border:1px solid currentColor; border-radius:50%;
+    background:radial-gradient(currentColor 1px, transparent 1.2px) 50% 7.5px/2px 2px no-repeat,
+               radial-gradient(currentColor .9px, transparent 1.1px) 50% 3px/2px 2px no-repeat; }
+  #about summary:hover { color:var(--ink); }
+  #about summary:focus-visible { outline:2px solid var(--bid); outline-offset:2px; border-radius:3px; }
+  #aboutbody { margin-top:8px; max-width:78ch; line-height:1.6; color:var(--dim); font-size:12.5px; }
+  .readout { display:flex; align-items:baseline; gap:16px; margin:8px 0 14px; }
+  .clock { font-size:30px; font-weight:500; line-height:1; }
   .clock .ms { color:var(--dim); font-size:0.62em; }
-  .spread { color:var(--dim); font-size:13px; min-width:104px; text-align:right; }
-  .spread b { color:var(--ink); font-weight:600; }
-  .feed { color:var(--dim); font-size:12.5px; margin:6px 0 16px; max-width:80ch; }
+  .spread { margin-left:auto; color:var(--dim); font-size:11px; letter-spacing:0.07em; }
+  .spread b { color:var(--ink); font-weight:600; font-size:15px; letter-spacing:0; margin-left:7px; }
 
   /* ---- stage: liquidity map + live ladder ------------------------------ */
   .stage { display:flex; gap:12px; align-items:stretch; }
@@ -39,57 +49,74 @@
   }
   #map { display:block; width:100%; height:452px; }
   .maptag {
-    position:absolute; left:10px; top:8px; font-size:10.5px; letter-spacing:0.05em;
-    color:var(--faint); pointer-events:none;
+    position:absolute; left:12px; top:9px; font-size:10.5px; letter-spacing:0.05em;
+    color:var(--dim); pointer-events:none;
   }
+  .tip {
+    position:absolute; display:none; pointer-events:none; z-index:2;
+    background:#060a0f; border:1px solid #2b3a4e; border-radius:6px; padding:8px 10px;
+    font-size:11.5px; line-height:1.65; color:var(--ink); box-shadow:0 6px 20px rgba(0,0,0,.5);
+    white-space:nowrap;
+  }
+  .tip .h { font-weight:700; font-size:13px; }
+  .tip .k { color:var(--dim); }
+  .tip table { border-collapse:collapse; margin-top:4px; }
+  .tip td { padding:0; }
+  .tip td.v { text-align:right; padding-left:16px; font-variant-numeric:tabular-nums; }
+  #map { cursor:crosshair; }
   .ladder {
-    flex:0 0 272px; border:1px solid var(--rule); border-radius:7px;
+    flex:0 0 328px; border:1px solid var(--rule); border-radius:7px;
     background:var(--panel); overflow:hidden; display:flex; flex-direction:column;
   }
-  .lrow { display:grid; grid-template-columns:34px 62px 58px 1fr; align-items:center; height:var(--row); }
-  .lhead { height:24px; color:var(--faint); font-size:10px; letter-spacing:0.05em;
+  .lrow { display:grid; grid-template-columns:40px 74px 66px 1fr; align-items:center; height:var(--row); }
+  .lhead { height:24px; color:var(--dim); font-size:10px; letter-spacing:0.05em;
            border-bottom:1px solid var(--rule); background:var(--panel2); }
   .lhead > * { padding:0 7px; text-align:right; }
   .lhead .d { text-align:left; padding-left:9px; }
   #ladder { flex:1 1 auto; padding:2px 0; }
   .lrow .oc, .lrow .sh, .lrow .px { padding:0 7px; text-align:right; }
-  .lrow .oc { font-size:10.5px; color:var(--faint); }
+  .lrow .oc { font-size:10.5px; color:var(--dim); }
   .lrow .sh { font-size:12px; color:var(--ink); }
   .lrow .px { font-size:12px; }
   .lrow.ask .px { color:var(--ask); } .lrow.bid .px { color:var(--bid); }
   .lrow .bar { position:relative; height:100%; margin-left:9px; margin-right:7px; }
   .lrow .bar .fill { position:absolute; left:0; top:4px; bottom:4px; border-radius:1px; min-width:2px; }
-  .lrow.best { background:#141d2a; }
-  .lrow.best .px, .lrow.best .sh { color:var(--ink); font-weight:600; }
-  .midrow { height:24px; display:flex; align-items:center; justify-content:center; gap:7px;
-            font-size:10.5px; color:var(--faint); letter-spacing:0.03em;
+  .lrow.best { background:#17212f; box-shadow:inset 0 0 0 1px #2b3a4e; }
+  .lrow.best .px, .lrow.best .sh { color:var(--ink); font-weight:700; }
+  .lrow.ask.best .px { color:#ffa869; }
+  .lrow.bid.best .px { color:#6fb8f5; }
+  .midrow { height:26px; display:flex; align-items:center; justify-content:center; gap:7px;
+            font-size:10.5px; color:var(--dim); letter-spacing:0.03em;
             border-top:1px solid var(--rule); border-bottom:1px solid var(--rule); background:#0a0f16; }
   .midrow b { color:var(--ink); font-weight:600; }
 
   /* ---- transport ------------------------------------------------------- */
-  .transport { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:12px; }
-  button { font:inherit; font-size:13px; color:var(--ink); background:var(--panel2);
-           border:1px solid var(--rule); border-radius:5px; padding:5px 11px; cursor:pointer; }
-  button:hover { border-color:#31415a; }
-  button:focus-visible { outline:2px solid var(--bid); outline-offset:2px; }
-  #play { min-width:74px; font-weight:500; }
-  .speeds { display:inline-flex; border:1px solid var(--rule); border-radius:5px; overflow:hidden; }
-  .speeds button { border:0; border-radius:0; background:transparent; color:var(--dim); padding:5px 10px; }
-  .speeds button + button { border-left:1px solid var(--rule); }
-  .speeds button.on { background:var(--bid); color:#04090f; font-weight:600; }
+  .transport { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:12px;
+               border:1px solid var(--rule); border-radius:7px; background:var(--panel); padding:8px 10px; }
+  button { font:inherit; cursor:pointer; }
+  .tgroup { display:inline-flex; border:1px solid var(--rule); border-radius:5px; overflow:hidden; background:#0a0f16; }
+  .tgroup button { border:0; border-radius:0; background:transparent; color:var(--dim);
+                   padding:4px 10px; font-size:12px; line-height:1.4; }
+  .tgroup button svg { display:block; width:11px; height:11px; fill:currentColor; }
+  .tgroup button + button { border-left:1px solid var(--rule); }
+  .tgroup button:hover { background:#141d2a; color:var(--ink); }
+  .tgroup button:focus-visible { outline:2px solid var(--bid); outline-offset:-2px; }
+  #play { color:var(--ink); min-width:34px; }
+  .speeds button { font-family:ui-monospace, Menlo, Consolas, monospace; font-size:11px; padding:4px 9px; }
+  .speeds button.on { background:#17212f; color:var(--ink); box-shadow:inset 0 -2px 0 var(--bid); }
   #scrub { flex:1 1 220px; min-width:160px; height:20px; background:transparent; cursor:pointer; -webkit-appearance:none; appearance:none; }
   #scrub::-webkit-slider-runnable-track { height:3px; background:var(--rule); border-radius:2px; }
   #scrub::-moz-range-track { height:3px; background:var(--rule); border-radius:2px; }
   #scrub::-webkit-slider-thumb { -webkit-appearance:none; width:13px; height:13px; margin-top:-5px; border-radius:50%; background:var(--ink); }
   #scrub::-moz-range-thumb { width:13px; height:13px; border:0; border-radius:50%; background:var(--ink); }
   #scrub:focus-visible { outline:2px solid var(--bid); outline-offset:3px; }
-  .stale { color:var(--faint); font-size:12px; font-variant-numeric:tabular-nums; min-width:172px; }
+  .stale { color:var(--dim); font-size:12px; font-variant-numeric:tabular-nums; min-width:172px; }
 
   .marker { display:none; margin-top:12px; padding:9px 13px; border-radius:6px;
             border:1px solid rgba(255,209,102,0.32); background:rgba(255,209,102,0.08);
             color:var(--cross); font-size:13px; }
   .marker.on { display:block; }
-  .cap { margin-top:18px; padding-top:13px; border-top:1px solid var(--rule); color:var(--faint); font-size:11.5px; line-height:1.7; }
+  .cap { margin-top:18px; padding-top:13px; border-top:1px solid var(--rule); color:var(--dim); font-size:11.5px; line-height:1.7; }
   .cap b { color:var(--dim); font-weight:500; }
 
   @media (prefers-reduced-motion:reduce) { * { transition:none !important; } }
@@ -107,15 +134,18 @@
 <div class="wrap">
   <header>
     <h1 id="title">Level-3 order book replay</h1>
+    <details id="about"><summary>About this replay</summary><div id="aboutbody"></div></details>
+  </header>
+  <div class="readout">
     <div class="clock num" id="clock">--:--:--<span class="ms">.---</span></div>
     <div class="spread" id="state"></div>
-  </header>
-  <p class="feed" id="subtitle">NASDAQ TotalView-ITCH 5.0, reconstructed order by order.</p>
+  </div>
 
   <div class="stage">
     <div class="mapwrap">
       <canvas id="map"></canvas>
       <div class="maptag" id="maptag">LIQUIDITY MAP · time → · price ↑ · brightness = resting shares</div>
+      <div class="tip" id="tip" role="status"></div>
     </div>
     <div class="ladder">
       <div class="lrow lhead"><div>ORD</div><div>SHARES</div><div>PRICE</div><div class="d">DEPTH</div></div>
@@ -124,8 +154,14 @@
   </div>
 
   <div class="transport">
-    <button id="play">Play</button>
-    <span class="speeds">
+    <span class="tgroup">
+      <button id="first" aria-label="Jump to start" title="Start"></button>
+      <button id="prev"  aria-label="Step back one snapshot" title="Step back"></button>
+      <button id="play"  aria-label="Play" title="Play / pause (space)"></button>
+      <button id="next"  aria-label="Step forward one snapshot" title="Step forward"></button>
+      <button id="lastb" aria-label="Jump to end" title="End"></button>
+    </span>
+    <span class="tgroup speeds">
       <button class="spd" data-s="1">1×</button><button class="spd on" data-s="10">10×</button><button class="spd" data-s="100">100×</button>
     </span>
     <input type="range" id="scrub" min="0" max="0" value="0" aria-label="Scrub through the replay">
@@ -145,10 +181,12 @@
   if (!snaps.length) { $('state').textContent = 'no data.js — run demo/make_demo.py'; return; }
 
   $('title').innerHTML = `${META.symbol || ''} <span class="tick">· NASDAQ TotalView-ITCH 5.0 · ${META.date || ''}</span>`;
-  $('subtitle').textContent =
-    'Every order rebuilt from the raw feed. The map is the whole replay at once — each column is the book at that '
-    + 'instant, brightness is shares resting at that price — and the ladder is the book right now, with each depth bar '
-    + 'split into one segment per resting order. That order count is the Level-3 detail a depth feed cannot carry.';
+  $('aboutbody').innerHTML =
+    'Every order rebuilt from the raw NASDAQ TotalView-ITCH 5.0 feed. The map is the whole replay at once — each column '
+    + 'is the book at that instant and brightness is shares resting at that price; the ladder is the book right now, with '
+    + 'each depth bar split into one segment per resting order. That order count is the Level-3 detail a depth feed cannot '
+    + 'carry. Hover the map for the level under the cursor and how long it has stood. The slice holds the '
+    + '<b>top ten levels a side</b>, so this is the band of displayed liquidity around the touch, not full depth.';
 
   const clock = $('clock'), state = $('state'), ladder = $('ladder'), scrub = $('scrub'),
         marker = $('marker'), stale = $('stale'), cv = $('map'), ctx = cv.getContext('2d');
@@ -179,8 +217,8 @@
     if (l[0] < PLO) PLO = l[0]; if (l[0] > PHI) PHI = l[0]; if (l[1] > SMAX) SMAX = l[1];
   }
   PLO -= 0.02; PHI += 0.02;
-  const PAD_L = 54, PAD_B = 18, PAD_T = 34;
-  let off = document.createElement('canvas'), octx = off.getContext('2d'), W = 0, H = 0, dpr = 1;
+  const PAD_L = 54, PAD_B = 18, PAD_T = 46;
+  let off = document.createElement('canvas'), octx = off.getContext('2d'), W = 0, H = 0, dpr = 1, crossHit = null;
 
   const xOf = t => PAD_L + (W - PAD_L - 6) * (t - T0) / (T1 - T0);
   const yOf = p => PAD_T + (H - PAD_T - PAD_B) * (PHI - p) / (PHI - PLO);
@@ -200,17 +238,17 @@
     octx.textAlign = 'right'; octx.textBaseline = 'middle';
     for (let p = Math.ceil(PLO * 4) / 4; p <= PHI; p += 0.25) {
       const y = yOf(p);
-      octx.strokeStyle = '#161e2a'; octx.beginPath();
+      octx.strokeStyle = '#1f2a39'; octx.beginPath();
       octx.moveTo(PAD_L, y + 0.5); octx.lineTo(W - 6, y + 0.5); octx.stroke();
-      octx.fillStyle = '#4a5768'; octx.fillText('$' + p.toFixed(2), PAD_L - 7, y);
+      octx.fillStyle = '#8b9aae'; octx.fillText('$' + p.toFixed(2), PAD_L - 7, y);
     }
     // time labels on the minute
     octx.textAlign = 'center'; octx.textBaseline = 'top';
     for (let t = Math.ceil(T0 / 60e9) * 60e9; t <= T1; t += 60e9) {
       const x = xOf(t);
-      octx.strokeStyle = '#161e2a'; octx.beginPath();
+      octx.strokeStyle = '#1f2a39'; octx.beginPath();
       octx.moveTo(x + 0.5, PAD_T); octx.lineTo(x + 0.5, H - PAD_B); octx.stroke();
-      octx.fillStyle = '#4a5768'; octx.fillText(fmtT(t)[0].slice(0, 5), x, H - PAD_B + 4);
+      octx.fillStyle = '#8b9aae'; octx.fillText(fmtT(t)[0].slice(0, 5), x, H - PAD_B + 4);
     }
 
     // the book itself: one rectangle per resting level, spanning until the next snapshot
@@ -228,6 +266,7 @@
       }
     }
     // the opening auction print
+    crossHit = null;
     for (const m of marks) if (m.cross) {
       const x = xOf(m.t);
       octx.strokeStyle = 'rgba(255,209,102,0.85)'; octx.setLineDash([3, 3]);
@@ -238,6 +277,8 @@
       const fits = x + 5 + octx.measureText(label).width < W - 6;   // flip to the left rather than run off
       octx.textAlign = fits ? 'left' : 'right';
       octx.fillText(label, x + (fits ? 5 : -5), PAD_T + 2);
+      const lw = octx.measureText(label).width;
+      crossHit = { x0: fits ? x : x - 5 - lw, x1: fits ? x + 5 + lw : x, y0: PAD_T, y1: PAD_T + 14, mark: m };
     }
   }
 
@@ -246,8 +287,16 @@
     ctx.clearRect(0, 0, W, H);
     ctx.drawImage(off, 0, 0, W, H);
     const x = xOf(Math.min(Math.max(t, T0), T1));
-    ctx.strokeStyle = 'rgba(230,236,244,0.85)'; ctx.lineWidth = 1;
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.moveTo(x + 0.5, PAD_T); ctx.lineTo(x + 0.5, H - PAD_B); ctx.stroke();
+    // the playhead says what time it is, so the clock, the map and the ladder are visibly the same instant
+    const lab = fmtT(t)[0], pad = 5;
+    ctx.font = '10px ui-monospace, Menlo, Consolas, monospace';
+    const w = ctx.measureText(lab).width + pad * 2, left = Math.min(Math.max(x - w / 2, PAD_L), W - 6 - w);
+    ctx.fillStyle = '#e6ecf4';
+    ctx.fillRect(left, PAD_T - 17, w, 14);
+    ctx.fillStyle = '#080b10'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.fillText(lab, left + pad, PAD_T - 10);
   }
 
   // ---- ladder -----------------------------------------------------------
@@ -308,32 +357,96 @@
       paintClock(simT); paintStale(simT); paintFrame(simT);
     }
     last = now;
-    if (i >= snaps.length - 1) { playing = false; $('play').textContent = 'Replay'; last = 0; return; }
+    if (i >= snaps.length - 1) { playing = false; $('play').innerHTML = ICON.play; last = 0; return; }
     requestAnimationFrame(tick);
   }
   function toggle() {
     if (i >= snaps.length - 1) { simT = snaps[0].t; render(0); }
-    playing = !playing; $('play').textContent = playing ? 'Pause' : 'Play'; last = 0;
+    playing = !playing; $('play').innerHTML = playing ? ICON.pause : ICON.play;
+    $('play').setAttribute('aria-label', playing ? 'Pause' : 'Play'); last = 0;
     if (!playing) stale.textContent = '';
     if (playing) requestAnimationFrame(tick);
   }
+  const ICON = {
+    first: '<svg viewBox="0 0 12 12" aria-hidden="true"><rect x="1" y="1" width="2" height="10"/><path d="M11 1 4 6l7 5z"/></svg>',
+    prev:  '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M10 1 3 6l7 5z"/></svg>',
+    play:  '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 1l7 5-7 5z"/></svg>',
+    pause: '<svg viewBox="0 0 12 12" aria-hidden="true"><rect x="2" y="1" width="3" height="10"/><rect x="7" y="1" width="3" height="10"/></svg>',
+    next:  '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 1l7 5-7 5z"/></svg>',
+    last:  '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M1 1l7 5-7 5z"/><rect x="9" y="1" width="2" height="10"/></svg>',
+  };
+  $('first').innerHTML = ICON.first; $('prev').innerHTML = ICON.prev;
+  $('play').innerHTML = ICON.play;   $('next').innerHTML = ICON.next; $('lastb').innerHTML = ICON.last;
+
+  function goto(k) { playing = false; $('play').innerHTML = ICON.play; stale.textContent = ''; simT = snaps[k].t; render(k); }
   $('play').onclick = toggle;
+  $('first').onclick = () => goto(0);
+  $('lastb').onclick = () => goto(snaps.length - 1);
+  $('prev').onclick  = () => goto(Math.max(0, i - 1));
+  $('next').onclick  = () => goto(Math.min(snaps.length - 1, i + 1));
   document.querySelectorAll('.spd').forEach(b => b.onclick = () => {
     speed = +b.dataset.s;
     document.querySelectorAll('.spd').forEach(x => x.classList.toggle('on', x === b));
   });
   scrub.oninput = () => { simT = snaps[+scrub.value].t; render(+scrub.value); stale.textContent = ''; };
+  const tip = $('tip');
+  const TICK = 0.01;
+  function levelAt(k, price, side) {
+    const rows = side === 'a' ? snaps[k].a : snaps[k].b;
+    for (const l of rows) if (Math.abs(l[0] - price) < TICK / 2) return l;
+    return null;
+  }
+  // How long a level at this price has stood, by walking the snapshots either side. Only uses what the slice holds:
+  // presence of a level at a price. It says nothing about which orders came and went - the slice does not carry that.
+  function standing(k, price, side) {
+    let a = k, b = k;
+    while (a > 0 && levelAt(a - 1, price, side)) a--;
+    while (b + 1 < snaps.length && levelAt(b + 1, price, side)) b++;
+    return { from: snaps[a].t, to: snaps[b].t, secs: (snaps[b].t - snaps[a].t) / 1e9 };
+  }
+  const fmtDur = sec => sec >= 60 ? `${Math.floor(sec/60)}m ${Math.round(sec%60)}s` : `${sec.toFixed(1)}s`;
+
+  cv.addEventListener('mousemove', e => {
+    const r = cv.getBoundingClientRect();
+    const mx = e.clientX - r.left, my = e.clientY - r.top;
+    const t = T0 + (T1 - T0) * (mx - PAD_L) / (r.width - PAD_L - 6);
+    const price = Math.round((PHI - (PHI - PLO) * (my - PAD_T) / (r.height - PAD_T - PAD_B)) * 100) / 100;
+    if (t < T0 || t > T1) { tip.style.display = 'none'; return; }
+    let k = 0; while (k + 1 < snaps.length && snaps[k + 1].t <= t) k++;
+    const side = levelAt(k, price, 'a') ? 'a' : (levelAt(k, price, 'b') ? 'b' : null);
+    if (!side) { tip.style.display = 'none'; return; }
+    const l = levelAt(k, price, side), st = standing(k, price, side);
+    tip.innerHTML =
+      `<div class="h" style="color:${side === 'a' ? '#f0883e' : '#3d9be9'}">$${l[0].toFixed(2)} <span class="k" style="font-weight:400">${side === 'a' ? 'ask' : 'bid'}</span></div>`
+      + `<table>`
+      + `<tr><td class="k">resting</td><td class="v">${fmtN(l[1])} shares</td></tr>`
+      + `<tr><td class="k">orders</td><td class="v">${fmtN(l[2])}</td></tr>`
+      + `<tr><td class="k">standing</td><td class="v">${fmtDur(st.secs)}</td></tr>`
+      + `<tr><td class="k">from</td><td class="v">${fmtT(st.from)[0]}</td></tr>`
+      + `<tr><td class="k">to</td><td class="v">${fmtT(st.to)[0]}</td></tr>`
+      + `</table>`;
+    tip.style.display = 'block';
+    const tw = tip.offsetWidth, th = tip.offsetHeight;
+    tip.style.left = Math.min(mx + 14, r.width - tw - 8) + 'px';
+    tip.style.top = Math.max(6, Math.min(my - th / 2, r.height - th - 6)) + 'px';
+  });
+  cv.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+
   cv.addEventListener('click', e => {                       // click the map to jump there
     const r = cv.getBoundingClientRect();
-    const t = T0 + (T1 - T0) * (e.clientX - r.left - PAD_L) / (r.width - PAD_L - 6);
+    const mx = e.clientX - r.left, my = e.clientY - r.top;
+    let t = T0 + (T1 - T0) * (mx - PAD_L) / (r.width - PAD_L - 6);
+    if (crossHit && mx >= crossHit.x0 - 3 && mx <= crossHit.x1 + 3 && my >= crossHit.y0 - 3 && my <= crossHit.y1 + 3) {
+      t = crossHit.mark.t;                                  // the annotation is a target, not just a caption
+    }
     let k = 0; while (k + 1 < snaps.length && snaps[k + 1].t <= t) k++;
-    playing = false; $('play').textContent = 'Play'; stale.textContent = '';
+    playing = false; $('play').innerHTML = ICON.play; stale.textContent = '';
     simT = snaps[k].t; render(k);
   });
   document.addEventListener('keydown', e => {
     if (e.key === ' ') { e.preventDefault(); toggle(); }
-    if (e.key === 'ArrowRight' && i < snaps.length - 1) { playing = false; $('play').textContent = 'Play'; simT = snaps[i+1].t; render(i + 1); }
-    if (e.key === 'ArrowLeft'  && i > 0)                { playing = false; $('play').textContent = 'Play'; simT = snaps[i-1].t; render(i - 1); }
+    if (e.key === 'ArrowRight' && i < snaps.length - 1) { playing = false; $('play').innerHTML = ICON.play; simT = snaps[i+1].t; render(i + 1); }
+    if (e.key === 'ArrowLeft'  && i > 0)                { playing = false; $('play').innerHTML = ICON.play; simT = snaps[i-1].t; render(i - 1); }
   });
   let rz; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { paintMap(); paintFrame(snaps[i].t); }, 120); });
 
