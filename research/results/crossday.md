@@ -48,8 +48,8 @@ One tier and one session so the days are comparable at a glance; the full grids 
 | P(fill ≤ 5 s), largest ahead0 decile (upper) | 1.2 % | 8.2 % | 3.2 % |
 | cancellation share of queue movement | 89.1 % | 91.5 % | 83.4 % |
 | median shares ahead at the touch | 1,970 | 1,400 | 701 |
-| effective spread (bps) | 23.4 | 9.7 | — |
-| realised spread at 30 s (bps) | -15.6 | -5.1 | — |
-| OFI out-of-sample R², median symbol | 0.483 | 0.578 | — |
-| OFI β (ticks per 1,000 shares), median symbol | 0.024 | 0.057 | — |
+| effective spread (bps) | 23.4 | 9.7 | 15.1 |
+| realised spread at 30 s (bps) | -15.6 | -5.1 | -9.5 |
+| OFI out-of-sample R², median symbol | 0.483 | 0.578 | 0.583 |
+| OFI β (ticks per 1,000 shares), median symbol | 0.024 | 0.057 | 0.185 |
 
