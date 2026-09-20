@@ -10,7 +10,7 @@ import java.io.Writer;
  * Top-N ladder of one symbol inside a time window, one NDJSON line per grid point at which the top of book changed
  * ({@code {"t":ts,"b":[[price,shares,orders]...],"a":[...]}}, best first), plus the symbol's cross trades
  * ({@code {"t":ts,"cross":"O","shares":..,"price":..}}) and system events ({@code {"t":ts,"system":"Q"}}).
- * Phase 4 demo input: 9:28-9:32 through the opening cross. Not on the hot path; walks the book with {@link Book#levelAt}.
+ * Phase 4 demo input: 9:24:40-9:32 through the opening cross. Not on the hot path; walks the book with {@link Book#levelAt}.
  */
 public final class LadderWriter implements Listener, AutoCloseable {
     private final String symbol;

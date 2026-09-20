@@ -117,7 +117,7 @@ public final class Replay {
     public static void main(String[] args) throws IOException {
         Path file = null; Set<String> syms = null; boolean hist = false; Path out = null;
         String reader = "stream", map = "hash", book = "tree", meatpy = null, probes = null, ladder = null;
-        long ladderFrom = 33_880_000_000_000L, ladderTo = 34_320_000_000_000L;   // 9:28:00 .. 9:32:00, through the opening cross
+        long ladderFrom = 33_880_000_000_000L, ladderTo = 34_320_000_000_000L;   // 9:24:40 .. 9:32:00, through the opening cross
         boolean pool = false, dedupe = false, validate = false, derived = true; int dumpN = 0;
         double probeEvery = 1, probeCensor = 60;
         for (int i = 0; i < args.length; i++) switch (args[i]) {

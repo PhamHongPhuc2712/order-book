@@ -9,7 +9,7 @@ import static org.junit.jupiter.api.Assertions.*;
 /** Top-N ladder snapshots for one symbol on a time grid, plus the cross message: the input of the static demo. */
 class LadderWriterTest {
     static final long MS = 1_000_000L;
-    static final long FROM = 33_880_000 * MS, TO = 34_320_000 * MS;    // 9:28:00 .. 9:32:00
+    static final long FROM = 33_880_000 * MS, TO = 34_320_000 * MS;    // 9:24:40 .. 9:32:00
 
     static void feed(Engine e, byte[]... msgs) { for (byte[] m : msgs) e.apply(m, m.length); }
 
@@ -20,7 +20,7 @@ class LadderWriterTest {
         w.setEngine(e);
         feed(e, Msg.sys(1, 'O'), Msg.dir(7, 2, "AAPL"), Msg.dir(8, 2, "MSFT"), Msg.action(7, 3, "AAPL", 'T'), Msg.sys(4, 'S'));
         feed(e, Msg.add(7, FROM - 5, 1, 'B', 100, "AAPL", 650000));                    // before the window: no line
-        feed(e, Msg.add(7, FROM + 1, 2, 'B', 50, "AAPL", 650000),                      // first change in the window -> snapshot at the 9:28:00.0 grid point
+        feed(e, Msg.add(7, FROM + 1, 2, 'B', 50, "AAPL", 650000),                      // first change in the window -> snapshot at the 9:24:40.0 grid point
                 Msg.add(7, FROM + 2, 3, 'B', 10, "AAPL", 649900),                      // same 100 ms bucket: no line
                 Msg.add(7, FROM + 3, 4, 'B', 10, "AAPL", 649800),
                 Msg.add(8, FROM + 4, 90, 'S', 10, "MSFT", 1500000),                    // other symbol: ignored
