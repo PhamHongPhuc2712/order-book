@@ -4,9 +4,11 @@
 # Usage: ops/bench_jfr.sh <day>   -> data/perf/<day>.jfr.txt  (and data/perf/*.jfr, git-ignored)
 set -u
 DAY=${1:?day}
-export JAVA_HOME="/c/Program Files/Eclipse Adoptium/jdk-21.0.12.101-hotspot"; export PATH="$JAVA_HOME/bin:$PATH"
-CP="replay/target/classes;core/target/classes;$(cat cp.txt)"
-SUB="data/itch/$DAY.sub20.bin"; OUT="data/perf/$DAY.jfr.txt"; : > "$OUT"
+cd "$(dirname "$0")/.." || exit 1
+LOB_QUIET=1 . ops/env.sh                      # JAVA_HOME, PATH and CP for this machine; LOB_QUIET keeps the log clean
+SUB="data/itch/$DAY.sub20.bin"; OUT="data/perf/$DAY.jfr.txt"
+mkdir -p data/perf                                # absent on a fresh clone
+: > "$OUT"
 log() { echo "$@" | tee -a "$OUT"; }
 
 gcflags() { case $1 in G1) echo "-XX:+UseG1GC";; Z) echo "-XX:+UseZGC -XX:+ZGenerational";; esac; }

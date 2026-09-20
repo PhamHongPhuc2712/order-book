@@ -20,11 +20,13 @@ pipeline scripts and the generated results; §4 downloads the data again.
 | disk | **~35 GB per day** while a day is being built, plus up to 25 GB of temporary sort spill | see §6 |
 | RAM | 16 GB comfortably, 13.7 GB works | at 13.7 GB never run two heavy stages at once |
 
-On the reference machine neither tool is on `PATH`, so every command is prefixed:
+On the reference machine neither tool is on `PATH`. Rather than hard-coding paths per script, source the environment
+file, which finds a JDK 21 and Maven wherever this machine keeps them (`$JAVA_HOME`, `~/tools`, `/usr/lib/jvm`, Program
+Files), exports `JAVA_HOME`/`PATH`, and sets `PY` (the venv interpreter) and `CP` (the runtime classpath, with the right
+separator for the platform):
 
 ```bash
-export JAVA_HOME="/c/Program Files/Eclipse Adoptium/jdk-21.0.12.101-hotspot"
-export PATH="$JAVA_HOME/bin:$HOME/tools/apache-maven-3.9.9/bin:$PATH"
+source ops/env.sh        # prints the java, mvn, python and classpath it resolved
 ```
 
 ```powershell
@@ -32,7 +34,19 @@ $env:JAVA_HOME = "C:\Program Files\Eclipse Adoptium\jdk-21.0.12.101-hotspot"
 $env:PATH = "$env:JAVA_HOME\bin;$HOME\tools\apache-maven-3.9.9\bin;$env:PATH"
 ```
 
-`ops/make.ps1` sets both itself, with those two paths hard-coded — **change them there first on a new machine.**
+`ops/bench.sh`, `ops/bench_jfr.sh`, `ops/make.sh` and `ops/run_days.sh` source `ops/env.sh` themselves, so there is
+nothing to edit on a new machine. `ops/make.ps1` still sets its two paths inline — **change them there first when
+running the PowerShell pipeline on a new Windows machine.**
+
+**Linux / WSL.** Everything runs here too; only the pipeline driver differs (`ops/make.sh` instead of `ops/make.ps1`,
+`ops/download.sh` instead of `ops/download.ps1` — same steps, same outputs, same exit-code discipline). With no root
+access, install the toolchain under `~/tools` and nothing else is needed:
+
+```bash
+curl -L -o /tmp/jdk21.tar.gz https://api.adoptium.net/v3/binary/latest/21/ga/linux/x64/jdk/hotspot/normal/eclipse
+mkdir -p ~/tools && tar -C ~/tools -xzf /tmp/jdk21.tar.gz
+curl -L https://dlcdn.apache.org/maven/maven-3/3.9.16/binaries/apache-maven-3.9.16-bin.tar.gz | tar -C ~/tools -xz
+```
 
 ## 2. Build and test the Java side
 
@@ -40,28 +54,36 @@ $env:PATH = "$env:JAVA_HOME\bin;$HOME\tools\apache-maven-3.9.9\bin;$env:PATH"
 mvn -B verify          # both modules, all tests: unit, jqwik property, golden-hash, corruption
 ```
 
-About 15 s warm, and it must be green before anything else. `GoldenReplayTest` skips itself until the 5-minute fixture
-has been cut (§5); everything else runs unconditionally.
+About 15 s warm (26 s cold), and it must be green before anything else. 57 tests in `core`, 8 in `replay`. The 5-minute
+fixture and its pinned hash are both committed, so `GoldenReplayTest` asserts rather than skipping — its `assumeTrue`
+guard is a Phase 1 leftover and only matters if the fixture is deleted.
 
 Two modules: `core` (parser, book, engine, listeners — no file I/O except the frame readers) and `replay` (the three
 mains `Probe`, `Filter`, `Replay`). The pipeline needs the HdrHistogram jar path once:
 
 ```bash
-mvn -q dependency:build-classpath -pl replay -Dmdep.outputFile=cp.txt
+mvn -B install -DskipTests                                              # core must be resolvable first
+mvn -q dependency:build-classpath -pl replay -Dmdep.outputFile="$PWD/cp.txt"
 ```
 
-`cp.txt` is git-ignored; `make.ps1` creates it if it is missing.
+Both lines matter. Without the install, resolution fails with `Could not find artifact sg.phuc:core` — `-pl replay`
+takes `replay` out of the reactor, so `core` has to come from the local repository. And `-Dmdep.outputFile` is resolved
+against the *module* directory, so a relative `cp.txt` lands in `replay/cp.txt`, where nothing looks for it; the scripts
+read the one at the repository root. `cp.txt` is git-ignored; `ops/env.sh` and `make.ps1` create it if it is missing.
 
 ## 3. Build the Python layer
 
 ```bash
 cd research
-python -m venv .venv                       # 3.12
-./.venv/Scripts/python.exe -m pip install -r requirements.txt
-./.venv/Scripts/python.exe -m pytest -q    # 21 tests, about 20 s
+python -m venv .venv                       # 3.12; `uv venv --python 3.12 .venv` also works and fetches 3.12 itself
+./.venv/Scripts/python.exe -m pip install -r requirements.txt     # Windows
+./.venv/bin/python        -m pip install -r requirements.txt      # Linux / macOS
+./.venv/bin/python -m pytest -q            # 21 tests, about 20 s
 ```
 
-Every script is invoked through `research/.venv/Scripts/python.exe` — `make.ps1` assumes that exact path.
+Every script is invoked through the venv interpreter: `make.ps1` assumes `research/.venv/Scripts/python.exe`,
+`make.sh` uses `$PY` from `ops/env.sh`, which is the `Scripts/` or `bin/` path as the platform requires. All nine
+pinned versions install cleanly on CPython 3.12.
 
 ## 4. Get the data
 
@@ -78,6 +100,10 @@ days this project reports on are listed in `ops/days.txt`:
 powershell -ExecutionPolicy Bypass -File ops/download.ps1 -Name 12302019.NASDAQ_ITCH50.gz
 ```
 
+```bash
+bash ops/download.sh 12302019.NASDAQ_ITCH50.gz
+```
+
 - `curl -C -` inside a resume loop, because a multi-hour single-connection download does get reset. Expect about
   **1.5 MB/s**: 40 minutes for day 1, over an hour for day 3.
 - **None of the three publishes an `.md5sum`** (404), so the integrity check is `Probe`: it walks every `[len:2][msg]`
@@ -90,9 +116,13 @@ powershell -ExecutionPolicy Bypass -File ops/download.ps1 -Name 12302019.NASDAQ_
 powershell -ExecutionPolicy Bypass -File ops/make.ps1 -Day 12302019 -Gz 12302019.NASDAQ_ITCH50.gz
 ```
 
+```bash
+bash ops/make.sh --day 12302019 --gz 12302019.NASDAQ_ITCH50.gz     # --steps report, --heap 8g
+```
+
 Each step runs as its own process: stdout to `data/derived/<day>/<step>.txt`, stderr to `<step>.txt.err`, exit code
 checked. A step that dies — including one the OS kills, which leaves no traceback at all — stops the day (D32).
-`-Steps` reruns a subset, e.g. `-Steps report` or `-Steps convert,report`.
+`-Steps` (`--steps` in `make.sh`) reruns a subset, e.g. `-Steps report` or `--steps convert,report`.
 
 | step | what it does | writes | 12302019 | 01302020 | S120825 |
 |---|---|---|---|---|---|
@@ -122,10 +152,13 @@ python demo/make_demo.py --ladder data/derived/12302019/ladder_AAPL.ndjson --sym
 
 ```bash
 bash ops/run_days.sh                       # every day in ops/days.txt, one at a time, then crossday.py
-cd research && ./.venv/Scripts/python.exe crossday.py --days 12302019 01302020 S120825 --derived ../data/derived
+cd research && "$PY" crossday.py --days 12302019 01302020 S120825 --derived ../data/derived
 ```
 
-The golden fixture, if you want `GoldenReplayTest` to assert rather than skip:
+`run_days.sh` picks the pipeline driver for the platform it is on — `make.ps1` under Git bash on Windows, `make.sh`
+otherwise — so the same command does every day on either.
+
+How the committed golden fixture was cut, if you ever need to re-cut it for another day or symbol set:
 
 ```bash
 java -cp "$CP" sg.phuc.lob.replay.Filter data/itch/12302019.bin \

@@ -5,9 +5,9 @@
 # tagged gc=<GC>@<heap> so tables at different heaps never mix.
 set -u
 DAY=${1:?day}; NG1=${2:-3}; NZ=${3:-1}; HEAP=${4:-8g}; GCS=${5:-"G1 Z"}; ONLY=${6:-all}
-export JAVA_HOME="/c/Program Files/Eclipse Adoptium/jdk-21.0.12.101-hotspot"; export PATH="$JAVA_HOME/bin:$PATH"
-CP="replay/target/classes;core/target/classes;$(cat cp.txt)"
-OUT="data/perf/$DAY.txt"
+cd "$(dirname "$0")/.." || exit 1
+LOB_QUIET=1 . ops/env.sh                      # JAVA_HOME, PATH and CP for this machine; LOB_QUIET keeps the log clean
+OUT="data/perf/$DAY.txt"; mkdir -p data/perf     # absent on a fresh clone; tee would fail per row
 ROWS=("naive|" "+mmap|--reader mmap" "+long|--reader mmap --map long" "+array|--reader mmap --map long --book array"
       "+pool|--reader mmap --map long --book array --pool" "+dedupe|--reader mmap --map long --book array --pool --dedupe")
 gcflags() { case $1 in G1) echo "-XX:+UseG1GC";; Z) echo "-XX:+UseZGC -XX:+ZGenerational";; *) echo "-XX:+Use$1GC";; esac; }
